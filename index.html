@@ -36,6 +36,9 @@ nav{display:flex;gap:4px;overflow-x:auto;max-width:100%}
 nav a{font-family:var(--font-display);font-weight:600;font-size:19px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-decoration:none;padding:6px 14px;border-bottom:3px solid transparent;white-space:nowrap}
 nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--primary)}
 .who{font-size:13px;color:var(--muted)}
+.clock{font-family:var(--font-mono);font-size:13px;color:var(--ink);text-align:left;line-height:1.35}
+.clock b{font-size:20px;font-weight:700;letter-spacing:.02em;display:block}
+.clock span{color:var(--muted);font-size:12px}
 .viewas select{font:inherit;font-size:13px;padding:2px 4px;margin-left:4px}
 .linkbtn{background:none;border:0;padding:0;text-decoration:underline;color:var(--ink)}
 .notice{margin-top:12px;padding:8px 12px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:13px}
@@ -136,7 +139,7 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 <div class="wrap">
   <header class="top">
     <div class="brand">Smash &amp; Volley<small id="tagline">COURT BOOKING</small></div>
-    <div class="right"><nav id="nav" aria-label="Sections"></nav><div class="who" id="who"></div></div>
+    <div class="right"><div class="clock" id="clock" role="timer" aria-label="Club time"></div><nav id="nav" aria-label="Sections"></nav><div class="who" id="who"></div></div>
   </header>
   <div id="notice"></div>
   <section id="v-grid">
@@ -275,7 +278,16 @@ function policyText(){
   return 'Cancel more than '+h+' hour'+(h===1?'':'s')+' before the start for a refund to your original payment method. Cancel later, up to '+m+' minutes before the start, and the amount is added to your credit instead. After that the booking cannot be cancelled.';
 }
 function courtName(id){var c=S.courts.find(function(x){return x.id===id});return c?c.name:''}
-function renderHead(){
+function tickClock(){
+  var el=$('clock');if(!el)return;if(!S.settings){el.innerHTML='';return}
+  var tz=S.settings.timezone,d=new Date(),f=function(z,o){try{return new Intl.DateTimeFormat('en-US',Object.assign({timeZone:z},o)).format(d)}catch(e){return ''}};
+  var t=f(tz,{hour:'numeric',minute:'2-digit',second:'2-digit'}),dt=f(tz,{weekday:'short',month:'short',day:'numeric'}),ab=f(tz,{timeZoneName:'short'}).split(' ').pop();
+  var my=Intl.DateTimeFormat().resolvedOptions().timeZone,diff=my&&my!==tz&&f(my,{hour:'numeric',minute:'2-digit',timeZoneName:'short'})!==f(tz,{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  var h='<b>'+esc(t)+'</b><span>Club time · '+esc(dt)+' · '+esc(ab)+'</span>';
+  if(diff)h+='<br><span>Your device: '+esc(f(my,{hour:'numeric',minute:'2-digit'}))+' ('+esc(my)+')</span>';
+  if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h}
+}
+function renderHead(){tickClock();
   var items=[['book','Book a court']];if(S.user)items.push(['mine','My bookings'],['profile','Profile']);if(S.isStaff)items.push(['front','Front desk'],['staff','Master schedule']);if(S.isAdmin)items.push(['people','Customers'],['settings','Settings']);
   $('nav').innerHTML=items.map(function(i){return '<a href="#'+i[0]+'"'+(S.view===i[0]?' aria-current="page"':'')+'>'+i[1]+'</a>'}).join('');
   var vs=S.realRole==='admin'?'<label class="viewas">Preview as <select data-viewas="1" aria-label="Preview the site as another role">'+[['admin','Admin (me)'],['staff','Staff'],['user','Regular user']].map(function(o){return '<option value="'+o[0]+'"'+(S.role===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label> · ':'';
@@ -832,6 +844,7 @@ sb.auth.onAuthStateChange(function(ev,session){
     loadProfile().then(function(){S.authMsg='';S.showAuth=false;renderHead();route()});
   },0);
 });
+setInterval(tickClock,1000);
 setInterval(function(){if(S.pending&&S.view==='book'&&!S.busyBtn)renderPanel()},5000);
 setInterval(function(){if(!document.hidden&&S.ready&&S.view!=='mine'&&S.view!=='settings'&&S.view!=='profile'&&S.view!=='people'&&!S.busyBtn)refresh()},30000);
 renderAll();init();
