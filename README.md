@@ -76,3 +76,28 @@ Reopened no-show slot: with automatic court assignment, the rest of that hour ca
 
 If a refund cannot be sent right away (for example the Razorpay keys are not added yet), the booking shows "Refund on its way" and the site retries it automatically the next time the player opens My bookings.
 Database: `club_settings.late_cancel_lock_minutes`, `club_settings.no_show_wait_minutes`; function `reopened_now(sport)`.
+
+
+## Roles: User, Staff, Admin
+
+| | User | Staff | Admin |
+|---|---|---|---|
+| Tabs | Book a court, My bookings, Profile | + Front desk, Master schedule | + Customers, Settings |
+| Own bookings: book, cancel, view | yes | yes | yes |
+| See all bookings on the schedule | | yes | yes |
+| Check in, undo check-in, mark no-show (after the wait) | | yes | yes |
+| Add phone / walk-up bookings | | yes | yes |
+| Cancel a walk-up booking | | yes | yes |
+| Cancel an online booking (refunds money) | | | yes |
+| Lessons, leagues, maintenance blocks | | | yes |
+| Customer list, add/remove credit | | | yes |
+| Settings (rates, courts, time rules, payments) | | | yes |
+| Change someone's role | | | yes |
+
+These rules are enforced in the database (row-level security and the functions), not only by hiding tabs.
+
+**Making someone staff or admin:** they sign up on the site first (they start as a User). An admin opens Customers, finds them and picks a role from the Role dropdown. It takes effect the next time they open the site. Admins cannot change their own role, and the last admin cannot be removed.
+
+**Front desk tab:** today's bookings with search and filters. Check-in opens 30 minutes before the start. Tapping Check in asks for the number of guests, an optional "I checked photo ID" box and a note, then Mark present. A no-show can be marked once the waiting time (Settings) has passed. Unchecked-in bookings that are late are highlighted. The page refreshes itself every 30 seconds.
+
+Database: `profiles.role` ('user', 'staff', 'admin'), `is_staff()`, `is_admin()`, `admin_set_role(user, role)`.
