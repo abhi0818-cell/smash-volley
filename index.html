@@ -36,6 +36,7 @@ nav{display:flex;gap:4px;overflow-x:auto;max-width:100%}
 nav a{font-family:var(--font-display);font-weight:600;font-size:19px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-decoration:none;padding:6px 14px;border-bottom:3px solid transparent;white-space:nowrap}
 nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--primary)}
 .who{font-size:13px;color:var(--muted)}
+.viewas select{font:inherit;font-size:13px;padding:2px 4px;margin-left:4px}
 .linkbtn{background:none;border:0;padding:0;text-decoration:underline;color:var(--ink)}
 .notice{margin-top:12px;padding:8px 12px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:13px}
 .toolbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin:18px 0 12px}
@@ -177,7 +178,7 @@ var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c)
 var pad = function(n){return String(n).padStart(2,'0')};
 function errText(e){var m=(e&&e.message)||'';for(var k in ERR)if(m.indexOf(k)>-1)return ERR[k];return 'Something went wrong. Please try again.'}
 
-var S = {view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
+var S = {viewAs:(function(){try{return sessionStorage.getItem('sv_viewas')||null}catch(e){return null}})(),view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
   busy:{},staffRows:[],sel:null,dur:1,done:null,err:'',busyBtn:false,mSel:null,confirmCancel:false,mine:[],
   form:{name:'',phone:'',email:'',password:'',password2:'',stype:'desk',reason:'',slen:1,ssport:'pickleball'},
   authMode:'signin',showAuth:false,authMsg:'',authOk:false,authBusy:false,ready:false,loadErr:''};
@@ -238,10 +239,14 @@ async function loadReopen(){
     if(r&&r.data){S.reopen=+tzParts(new Date(r.data),S.settings.timezone).hour}}catch(e){S.reopen=null}
 }
 async function loadProfile(){
-  var s=await sb.auth.getSession();S.user=s.data.session?s.data.session.user:null;S.isAdmin=false;S.isStaff=false;S.role='user';
+  var s=await sb.auth.getSession();S.user=s.data.session?s.data.session.user:null;S.isAdmin=false;S.isStaff=false;S.role='user';S.realRole='user';
   if(S.user){var p=await sb.from('profiles').select('full_name,phone,role').eq('id',S.user.id).maybeSingle();
     var cb=await sb.rpc('my_credit');S.credit=Number(cb&&cb.data)||0;
-    if(p.data){S.role=p.data.role||'user';S.isAdmin=S.role==='admin';S.isStaff=S.role==='staff'||S.role==='admin';if(!S.form.name)S.form.name=p.data.full_name||'';if(!S.form.phone)S.form.phone=p.data.phone||''}}
+    if(p.data){S.realRole=p.data.role||'user';applyRole();if(!S.form.name)S.form.name=p.data.full_name||'';if(!S.form.phone)S.form.phone=p.data.phone||''}}
+}
+function applyRole(){
+  var v=S.realRole==='admin'?S.viewAs:null;if(v!=='user'&&v!=='staff')v=null;
+  S.role=v||S.realRole;S.isAdmin=S.role==='admin';S.isStaff=S.role==='staff'||S.role==='admin';
 }
 async function loadLedger(){
   var r=await sb.from('credit_ledger').select('*').eq('user_id',S.user.id).order('created_at',{ascending:false}).limit(50);S.ledger=r.data||[];
@@ -273,9 +278,11 @@ function courtName(id){var c=S.courts.find(function(x){return x.id===id});return
 function renderHead(){
   var items=[['book','Book a court']];if(S.user)items.push(['mine','My bookings'],['profile','Profile']);if(S.isStaff)items.push(['front','Front desk'],['staff','Master schedule']);if(S.isAdmin)items.push(['people','Customers'],['settings','Settings']);
   $('nav').innerHTML=items.map(function(i){return '<a href="#'+i[0]+'"'+(S.view===i[0]?' aria-current="page"':'')+'>'+i[1]+'</a>'}).join('');
-  $('who').innerHTML=S.user?esc(S.user.email)+(S.isStaff?' · '+(S.isAdmin?'Admin':'Staff'):'')+' · <button class="linkbtn" data-act="signout">Sign out</button>':'<button class="linkbtn" data-act="show-auth">Sign in</button>';
+  var vs=S.realRole==='admin'?'<label class="viewas">Preview as <select data-viewas="1" aria-label="Preview the site as another role">'+[['admin','Admin (me)'],['staff','Staff'],['user','Regular user']].map(function(o){return '<option value="'+o[0]+'"'+(S.role===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label> · ':'';
+  $('who').innerHTML=S.user?vs+esc(S.user.email)+(S.isStaff?' · '+(S.isAdmin?'Admin':'Staff'):'')+' · <button class="linkbtn" data-act="signout">Sign out</button>':'<button class="linkbtn" data-act="show-auth">Sign in</button>';
   if(S.settings)$('tagline').textContent='COURT BOOKING · '+S.courts.length+' COURTS · BADMINTON & PICKLEBALL';
-  $('notice').innerHTML=S.loadErr?'<div class="notice" role="alert">'+esc(S.loadErr)+'</div>':(!S.ready?'<div class="notice">Loading the club schedule…</div>':'');
+  var pv=S.realRole==='admin'&&S.role!=='admin'?'<div class="notice" role="status">Previewing the site as <b>'+(S.role==='staff'?'Staff':'a regular user')+'</b>. This only changes what you see. Your account is still Admin.</div>':'';
+  $('notice').innerHTML=pv+(S.loadErr?'<div class="notice" role="alert">'+esc(S.loadErr)+'</div>':(!S.ready?'<div class="notice">Loading the club schedule…</div>':''));
 }
 function renderToolbar(){
   if(!S.ready){$('toolbar').innerHTML='';return}
@@ -794,10 +801,11 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('submit',function(e){var fm=e.target;if(fm.dataset&&fm.dataset.form==='auth'){e.preventDefault();doAuth()}});
 document.addEventListener('input',function(e){if(e.target.id==='fd-q'){S.frontQ=e.target.value;renderFrontList();return}if(e.target.id==='fd-note'){S.frontDraft.note=e.target.value;return}if(e.target.dataset&&e.target.dataset.f==='useCredit')return;var pp=e.target.dataset&&e.target.dataset.ppl;if(pp){var q=pp.split('.');S.pplIn=S.pplIn||{};S.pplIn[q[0]]=S.pplIn[q[0]]||{};S.pplIn[q[0]][q[1]]=e.target.value}setCfg(e.target);var f=e.target.dataset&&e.target.dataset.f;if(f)S.form[f]=e.target.value});
-document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&/^s\.booked_/.test(e.target.dataset.k||''))renderSettings();var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
+document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.viewas){S.viewAs=e.target.value==='admin'?null:e.target.value;try{sessionStorage.setItem('sv_viewas',S.viewAs||'')}catch(x){}applyRole();S.mSel=null;route();return}if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&/^s\.booked_/.test(e.target.dataset.k||''))renderSettings();var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
 async function route(){
   var v=(location.hash||'#book').slice(1);if(['book','mine','staff','front','settings','profile','people'].indexOf(v)<0)v='book';
   if((v==='mine'||v==='profile')&&!S.user)v='book';if((v==='staff'||v==='front')&&!S.isStaff)v='book';if((v==='settings'||v==='people')&&!S.isAdmin)v='book';
+  if((location.hash||'#book')!=='#'+v){try{history.replaceState(null,'','#'+v)}catch(e){}}
   S.view=v;S.sel=null;S.mSel=null;S.err='';S.confirmCancel=false;S.dur=1;
   if(v==='mine')await loadMine();
   if(v==='profile'){S.ledger=null;S.pmsg='';renderAll();await loadLedger()}
