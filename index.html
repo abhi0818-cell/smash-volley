@@ -108,6 +108,15 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .check{flex-direction:row;align-items:center;gap:8px;font-weight:500}
 .check input{width:auto}
+.tile{background:var(--surface);border:1px solid var(--line);align-self:start}
+.tile.open{grid-column:1/-1}
+.tilehd{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;cursor:pointer}
+.tilehd:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.tilehd b{display:block;font:700 22px var(--font-display);text-transform:uppercase}
+.tilehd .muted{display:block;font-size:13px;margin-top:2px}
+.tilehd i{font-style:normal;font-size:26px;line-height:1;color:var(--muted)}
+.tile.open .tilehd{border-bottom:1px solid var(--line)}
+.tbody{padding:18px;display:flex;flex-direction:column;gap:12px}
 .fd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 10px}
 .fd-stats div{background:var(--surface);border:1px solid var(--line);padding:8px 12px}
 .fd-stats b{display:block;font-size:24px;font-family:var(--font-display)}
@@ -654,14 +663,24 @@ async function loadCfg(){
 function hourOpts(sel,from,to){var o='';for(var h=from;h<=to;h++)o+='<option value="'+h+'"'+(+sel===h?' selected':'')+'>'+fmt(h)+'</option>';return o}
 function numOpts(sel,from,to,unit){var o='';for(var n=from;n<=to;n++)o+='<option value="'+n+'"'+(+sel===n?' selected':'')+'>'+n+(unit?' '+unit+(n===1?'':'s'):'')+'</option>';return o}
 function cfgMsg(sec){var m=S.cfgMsg&&S.cfgMsg[sec];return m?'<div class="'+(m.ok?'okmsg':'err')+'" role="alert">'+esc(m.t)+'</div>':''}
+function tile(key,title,sum,body){
+  var o=!!(S.setOpen&&S.setOpen[key]);
+  return '<div class="tile'+(o?' open':'')+'"><button class="tilehd" data-act="tile" data-t="'+key+'" aria-expanded="'+o+'"><span><b>'+title+'</b><span class="muted">'+sum+'</span></span><i aria-hidden="true">'+(o?'−':'+')+'</i></button>'+(o?body:'')+'</div>';
+}
 function renderSettings(){
   var el=$('v-settings');
   if(!S.cfg){el.innerHTML='<p class="muted" style="margin-top:20px">Loading settings…</p>';return}
   var s=S.cfg.s,r=S.cfg.r,b=S.busyBtn?' disabled':'';
   var curSym=function(){return money(0,s.currency).replace(/[\d.,\s]/g,'')||s.currency};
+  var mk={taken:'Just "Taken"',racket:'Racket or paddle',ball:'Ball or shuttle',both:'Racket and ball'};
+  var rv=function(k){return r[k]!=null&&r[k]!==''?money(+r[k],s.currency):'—'};
+  var clubSum=esc(s.currency)+' · '+esc(s.timezone)+' · '+((s.assign_mode||'auto')==='auto'?'courts assigned automatically':'players pick the court')+' · payments '+(s.payment_required?'on':'off');
+  var markSum=esc(mk[s.booked_marker||'both']||'')+((s.booked_marker||'both')!=='taken'&&s.booked_show_text!==false?' with sport name':'');
+  var ratesSum='Pickleball '+rv('pickleball_o')+' / '+rv('pickleball_p')+' · Badminton '+rv('badminton_o')+' / '+rv('badminton_p')+' (off-peak / peak)';
+  var nAct=S.cfg.c.filter(function(c){return c.active}).length,courtsSum=S.cfg.c.length+' court'+(S.cfg.c.length===1?'':'s')+' · '+nAct+' active';
   var rate=function(sp,pk,lab){return '<label>'+lab+' ('+curSym()+' per hour)<input type="number" min="0" step="0.5" inputmode="decimal" data-k="r.'+sp+'_'+pk+'" value="'+esc(r[sp+'_'+pk]!=null?r[sp+'_'+pk]:'')+'"></label>'};
   el.innerHTML='<h2 style="margin-top:20px">Settings</h2><p class="muted" style="margin-top:6px">Changes apply to new bookings straight away. Existing bookings are not changed.</p><div class="setgrid">'+
-  '<div class="setbox"><h3>Club</h3>'+
+  tile('club','Club',clubSum,'<div class="tbody">'+
    '<label>Currency<select data-k="s.currency">'+CURS.map(function(c){return '<option value="'+c[0]+'"'+(s.currency===c[0]?' selected':'')+'>'+c[0]+' · '+c[1]+'</option>'}).join('')+'</select><span class="muted">Rates are shown in this currency. Existing bookings keep the currency they were made in.</span></label>'+
    '<label>Courts are assigned<select data-k="s.assign_mode"><option value="auto"'+((s.assign_mode||'auto')==='auto'?' selected':'')+'>Automatically (player picks sport and time)</option><option value="player"'+(s.assign_mode==='player'?' selected':'')+'>Player picks the court</option></select><span class="muted">Automatic keeps the same sport on the same court where it can.</span></label>'+
    '<label>Changeover between sports<select data-k="s.changeover_minutes">'+[0,5,10,15,20].map(function(n){var cm=s.changeover_minutes==null?15:+s.changeover_minutes;return '<option value="'+n+'"'+(cm===n?' selected':'')+'>'+(n?n+' minutes':'Off (no buffer)')+'</option>'}).join('')+'</select><span class="muted">Only when two different sports are back to back on the same court and no other court works. The player who books second gets a shorter, prorated session. Applies to automatic assignment.</span></label>'+
@@ -676,17 +695,17 @@ function renderSettings(){
    '<label class="check"><input type="checkbox" data-k="s.payment_required"'+(s.payment_required?' checked':'')+'>Take payment online when players book</label><span class="muted">Turn this on only after the Razorpay keys are added (see README). Cancel more than the refund window before the start and the money is refunded to the card. Cancel later and it becomes credit. Close to the start, players cannot cancel.</span>'+
    '<label>Credit given for a no-show (%)<input type="number" min="0" max="100" step="5" data-k="s.no_show_credit_percent" value="'+esc(s.no_show_credit_percent!=null?s.no_show_credit_percent:100)+'"></label>'+
    '<label>Hold the slot while paying<select data-k="s.hold_minutes">'+numOpts(s.hold_minutes||10,5,30,'minute')+'</select></label>'+
-   cfgMsg('club')+'<button class="btn" data-act="save-club"'+b+'>Save club settings</button></div>'+
-  '<div class="setbox"><h3>Booked slots</h3><p class="muted">What players see on a booked square when they pick the court themselves.</p>'+
+   cfgMsg('club')+'<button class="btn" data-act="save-club"'+b+'>Save club settings</button></div>')+
+  tile('marker','Booked slots',markSum,'<div class="tbody"><p class="muted">What players see on a booked square when they pick the court themselves.</p>'+
    '<label>Show<select data-k="s.booked_marker">'+[['taken','Just "Taken"'],['racket','Racket or paddle only'],['ball','Ball or shuttle only'],['both','Racket and ball (paddle + ball, racket + shuttle)']].map(function(o){return '<option value="'+o[0]+'"'+((s.booked_marker||'both')===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label>'+
    '<label class="check"><input type="checkbox" data-k="s.booked_show_text"'+(s.booked_show_text!==false?' checked':'')+((s.booked_marker||'both')==='taken'?' disabled':'')+'>Add the sport name under the icon</label><span class="muted">On phones the name is hidden to keep squares readable.</span>'+
    '<div class="grid" style="--cols:3;grid-template-columns:repeat(3,60px);margin-top:4px">'+markerCell({sport:'pickleball'},'Preview',s)+markerCell({sport:'badminton'},'Preview',s)+markerCell({sport:'pickleball',held:true},'Preview',s)+'</div>'+
-   cfgMsg('marker')+'<button class="btn" data-act="save-marker"'+b+'>Save booked slots</button></div>'+
-  '<div class="setbox"><h3>Rates</h3><p class="muted">Peak is weekends, and weekdays from the peak start time above.</p>'+
+   cfgMsg('marker')+'<button class="btn" data-act="save-marker"'+b+'>Save booked slots</button></div>')+
+  tile('rates','Rates',ratesSum,'<div class="tbody"><p class="muted">Peak is weekends, and weekdays from the peak start time above.</p>'+
    rate('pickleball','o','Pickleball off-peak')+rate('pickleball','p','Pickleball peak')+rate('badminton','o','Badminton off-peak')+rate('badminton','p','Badminton peak')+
-   cfgMsg('rates')+'<button class="btn" data-act="save-rates"'+b+'>Save rates</button></div>'+
-  '<div class="setbox"><h3>Courts</h3>'+S.cfg.c.map(function(c){return '<div class="setbox" style="background:var(--bg)"><label>Name<input data-k="c.'+c.id+'.name" value="'+esc(c.name)+'"></label><label>Description<input data-k="c.'+c.id+'.description" value="'+esc(c.description)+'"></label><div class="two"><label>Opens<select data-k="c.'+c.id+'.open">'+hourOpts(c.open,0,22)+'</select></label><label>Closes<select data-k="c.'+c.id+'.close">'+hourOpts(c.close,1,23)+'</select></label></div><label class="check"><input type="checkbox" data-k="c.'+c.id+'.active"'+(c.active?' checked':'')+'>Open for booking</label></div>'}).join('')+
-   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div></div>';
+   cfgMsg('rates')+'<button class="btn" data-act="save-rates"'+b+'>Save rates</button></div>')+
+  tile('courts','Courts',courtsSum,'<div class="tbody">'+S.cfg.c.map(function(c){return '<div class="setbox" style="background:var(--bg)"><label>Name<input data-k="c.'+c.id+'.name" value="'+esc(c.name)+'"></label><label>Description<input data-k="c.'+c.id+'.description" value="'+esc(c.description)+'"></label><div class="two"><label>Opens<select data-k="c.'+c.id+'.open">'+hourOpts(c.open,0,22)+'</select></label><label>Closes<select data-k="c.'+c.id+'.close">'+hourOpts(c.close,1,23)+'</select></label></div><label class="check"><input type="checkbox" data-k="c.'+c.id+'.active"'+(c.active?' checked':'')+'>Open for booking</label></div>'}).join('')+
+   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>')+'</div>';
 }
 function setCfg(el){
   var k=el.dataset&&el.dataset.k;if(!k||!S.cfg)return;var p=k.split('.'),v=el.type==='checkbox'?el.checked:el.value;
@@ -747,6 +766,7 @@ document.addEventListener('click',function(e){
   else if(a==='cancel'){S.confirmCancel=true;renderPanel()}
   else if(a==='cancel-no'){S.confirmCancel=false;renderPanel()}
   else if(a==='cancel-yes')doStaffCancel(t.dataset.id);
+  else if(a==='tile'){S.setOpen=S.setOpen||{};S.setOpen[t.dataset.t]=!S.setOpen[t.dataset.t];renderSettings()}
   else if(a==='mine-cancel')doMineCancel(t.dataset.id);
   else if(a==='front-filter'){S.frontFilter=t.dataset.v;renderFront()}
   else if(a==='front-open'){S.frontOpen=t.dataset.id;S.frontNs=null;S.frontDraft={g:0,idc:false,note:''};S.frontMsg='';S.frontErr='';renderFrontList()}
@@ -784,7 +804,7 @@ async function route(){
   if(v==='people'){S.people=null;S.pplMsg={};renderAll();await loadPeople()}
   if(S.frontTimer){clearInterval(S.frontTimer);S.frontTimer=null}
   if(v==='front'){S.front=null;S.frontOpen=null;S.frontNs=null;S.frontMsg='';renderAll();S.frontTimer=setInterval(function(){if(S.view==='front')loadFront()},30000);await loadFront()}
-  if(v==='settings'){S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}}
+  if(v==='settings'){S.setOpen={};S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}}
   renderAll();if(S.ready&&v!=='mine'&&v!=='profile'&&v!=='people'&&v!=='front')await refresh();
 }
 window.addEventListener('hashchange',route);
