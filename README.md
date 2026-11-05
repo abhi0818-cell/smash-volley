@@ -129,10 +129,10 @@ Admins also see a **Test only: pretend this was paid online** box in that confir
 
 ## Court view and appearance (Settings > Appearance)
 
-**Court view.** On Book a court, below the "Any court" timeline, a plan of the courts shows which are free at the hour you picked (or the current hour if none is picked). Free courts show the lines of the sport selected above (white pickleball lines, or thin light-blue badminton lines). A booked court keeps the lines of the game it is booked for, whatever sport is selected. When players choose their own court (Settings > Club), tapping a free court selects it. Turn the whole view on or off with "Show the court view" in Settings > Appearance.
+**Court view.** On Book a court, below the "Any court" timeline, a plan of the courts shows which are free at the hour you last tapped on the timeline, including fully booked, passed or closed hours (or the current hour if none is tapped). The tapped hour is underlined in the timeline header. Free courts show the lines of the sport selected above (white pickleball lines, or thin light-blue badminton lines). A booked court keeps the lines of the game it is booked for, whatever sport is selected. When players choose their own court (Settings > Club), tapping a free court selects it. Turn the whole view on or off with "Show the court view" in Settings > Appearance.
 
 **Website colour theme.** Settings > Appearance > Website colour theme: Forest green (default), Midnight and orange, Ocean blue, Rust and sand, Slate and gold, Plum and lilac, or a custom main colour. It applies to everyone, follows each person's light or dark mode, and previews live before you press Save.
 
-**Court view colours.** Ten presets (including Blue court with orange kitchen on midnight, the default) or three custom colours (court, kitchen, surround), plus a switch for the club name in the kitchens.
+**Court view colours.** Ten presets (including Blue court with orange kitchen on midnight, the default) or three custom colours (court, kitchen, surround), plus a switch for the club name in the kitchens, with its own font (8 choices), size (7 to 18 px) and letter colour. Very large text is squeezed to fit inside the court.
 
 Database: `club_settings.show_court_view` (boolean) and `club_settings.appearance` (small JSON: theme, primary, court, cp, ck, co, wordmark).
