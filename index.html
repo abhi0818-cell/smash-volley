@@ -120,6 +120,10 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .tilehd .muted{display:block;font-size:13px;margin-top:2px}
 .tilehd i{font-style:normal;font-size:26px;line-height:1;color:var(--muted)}
 .tile.open .tilehd{border-bottom:1px solid var(--line)}
+.lockcard{max-width:380px;margin:40px auto;background:var(--surface);border:1px solid var(--line);padding:26px;display:flex;flex-direction:column;gap:14px;text-align:center}
+.lockcard h2{margin:0}
+.lockcard input{font:700 30px var(--font-mono);letter-spacing:.4em;text-align:center}
+.sfrow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .tbody{padding:18px;display:flex;flex-direction:column;gap:12px}
 .fd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 10px}
 .fd-stats div{background:var(--surface);border:1px solid var(--line);padding:8px 12px}
@@ -155,6 +159,7 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
   <section id="v-profile" hidden></section>
   <section id="v-people" hidden></section>
   <section id="v-front" hidden></section>
+  <section id="v-lock" hidden></section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -173,15 +178,16 @@ var ERR = {
   not_signed_in:'Sign in to continue.', name_required:'Enter your name.', in_the_past:'That time has already passed.', too_far_ahead:'That date is too far ahead to book yet.',
   too_many_bookings:'You have reached the limit of upcoming bookings. Cancel one or wait until one has passed.', outside_opening_hours:'That is outside opening hours.',
   invalid_length:'Choose 1 or 2 hours.', invalid_sport:'Choose pickleball or badminton.', not_on_the_hour:'Bookings start on the hour.', court_not_found:'That court is not available.',
-  not_allowed:'Staff only.', too_late_to_cancel:'This booking has already started, so it cannot be cancelled online. Please speak to the club.', booking_not_found:'Booking not found.', already_checked_in:'That player is checked in, so it cannot be a no-show. Undo the check-in first.', not_markable:'That booking cannot be changed.', own_role:'You cannot change your own role.', last_admin:'There must always be at least one admin.', invalid_role:'That role is not valid.', customer_not_found:'Customer not found.', no_show_too_early:'A no-show can only be marked after the waiting time has passed (see Settings).',
+  pin_required:'Enter your PIN to continue.', pin_in_use:'Another person already uses that PIN. Choose a different one.', pin_format:'A PIN is 4 to 6 digits.', name_required:'Enter a name.', not_allowed:'Staff only.', too_late_to_cancel:'This booking has already started, so it cannot be cancelled online. Please speak to the club.', booking_not_found:'Booking not found.', already_checked_in:'That player is checked in, so it cannot be a no-show. Undo the check-in first.', not_markable:'That booking cannot be changed.', own_role:'You cannot change your own role.', last_admin:'There must always be at least one admin.', invalid_role:'That role is not valid.', customer_not_found:'Customer not found.', no_show_too_early:'A no-show can only be marked after the waiting time has passed (see Settings).',
   payments_not_configured:'Online payment is not set up yet. Please contact the club.', hold_expired:'Your hold on that slot has expired. Please pick it again.', not_payable:'This booking cannot be paid for.', order_failed:'Could not start the payment. Please try again.', bad_signature:'Payment could not be verified. If money was taken it will be refunded.', network:'Could not reach the payment service. Please try again.'
 };
 var $ = function(id){return document.getElementById(id)};
 var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 var pad = function(n){return String(n).padStart(2,'0')};
-function errText(e){var m=(e&&e.message)||'';for(var k in ERR)if(m.indexOf(k)>-1)return ERR[k];return 'Something went wrong. Please try again.'}
+function errText(e){var m=(e&&e.message)||'';if(m.indexOf('pin_required')>-1&&S.desk){S.desk=null;setTimeout(renderAll,0)}for(var k in ERR)if(m.indexOf(k)>-1)return ERR[k];return 'Something went wrong. Please try again.'}
 
-var S = {viewAs:(function(){try{return sessionStorage.getItem('sv_viewas')||null}catch(e){return null}})(),view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
+var STAFF_DOMAIN='staff.smashvolley.invalid';
+var S = {needsPin:false,desk:null,lastAct:Date.now(),pins:null,shared:[],sf:{},sfMsg:{},viewAs:(function(){try{return sessionStorage.getItem('sv_viewas')||null}catch(e){return null}})(),view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
   busy:{},staffRows:[],sel:null,dur:1,done:null,err:'',busyBtn:false,mSel:null,confirmCancel:false,mine:[],
   form:{name:'',phone:'',email:'',password:'',password2:'',stype:'desk',reason:'',slen:1,ssport:'pickleball'},
   authMode:'signin',showAuth:false,authMsg:'',authOk:false,authBusy:false,ready:false,loadErr:''};
@@ -242,11 +248,13 @@ async function loadReopen(){
     if(r&&r.data){S.reopen=+tzParts(new Date(r.data),S.settings.timezone).hour}}catch(e){S.reopen=null}
 }
 async function loadProfile(){
-  var s=await sb.auth.getSession();S.user=s.data.session?s.data.session.user:null;S.isAdmin=false;S.isStaff=false;S.role='user';S.realRole='user';
+  var s=await sb.auth.getSession();S.user=s.data.session?s.data.session.user:null;S.isAdmin=false;S.isStaff=false;S.role='user';S.realRole='user';S.needsPin=false;
   if(S.user){var p=await sb.from('profiles').select('full_name,phone,role').eq('id',S.user.id).maybeSingle();
     var cb=await sb.rpc('my_credit');S.credit=Number(cb&&cb.data)||0;
-    if(p.data){S.realRole=p.data.role||'user';applyRole();if(!S.form.name)S.form.name=p.data.full_name||'';if(!S.form.phone)S.form.phone=p.data.phone||''}}
+    if(p.data){S.realRole=p.data.role||'user';applyRole();if(S.realRole==='staff'){var np=await sb.rpc('my_needs_pin');S.needsPin=!!(np&&np.data===true)}else{S.needsPin=false;S.desk=null}if(!S.form.name)S.form.name=p.data.full_name||'';if(!S.form.phone)S.form.phone=p.data.phone||''}}
 }
+function tok(){return S.desk&&S.desk.token||null}
+function deskLocked(){return !!(S.user&&S.needsPin&&S.realRole==='staff'&&!S.desk)}
 function applyRole(){
   var v=S.realRole==='admin'?S.viewAs:null;if(v!=='user'&&v!=='staff')v=null;
   S.role=v||S.realRole;S.isAdmin=S.role==='admin';S.isStaff=S.role==='staff'||S.role==='admin';
@@ -257,8 +265,54 @@ async function loadLedger(){
   var ns=await sb.from('bookings').select('id',{count:'exact',head:true}).eq('user_id',S.user.id).eq('no_show',true);S.myNoShows=ns&&ns.count||0;
   if(S.view==='profile')renderProfile();
 }
+async function doUnlock(){
+  var v=($('pin-in')&&$('pin-in').value||'').trim();S.lockMsg='';
+  if(!/^[0-9]{4,6}$/.test(v)){S.lockMsg='Enter your 4 to 6 digit PIN.';return renderLock()}
+  S.busyBtn=true;renderLock();var r=await sb.rpc('unlock_desk',{p_pin:v});S.busyBtn=false;var d=r.data||{};
+  if(r.error){S.lockMsg=errText(r.error);return renderLock()}
+  if(!d.ok){S.lockMsg=d.error==='pin_locked'?'Too many wrong tries. Wait '+Math.ceil((d.seconds||120)/60)+' minute(s) and try again.':'That PIN is not right.';return renderLock()}
+  S.desk={token:d.token,name:d.name};S.lastAct=Date.now();S.lockMsg='';renderAll();
+  if(S.view==='front')await loadFront();else await refresh();
+}
+function sfv(k,def){return S.sf[k]!=null?S.sf[k]:def}
+function sfm(k,ok,t){S.sfMsg[k]={ok:ok,t:t}}
+async function doPinSave(id){
+  var k=id||'new',nm=id?sfv('n.'+id,(S.pins.find(function(x){return x.id===id})||{}).name):S.sf.nn,pin=id?(S.sf['p.'+id]||''):(S.sf.np||'');S.sfMsg={};
+  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_save_pin',{p_id:id||null,p_name:nm,p_pin:pin,p_active:id?null:true});S.busyBtn=false;
+  if(r.error){sfm(k,false,errText(r.error));return renderPeople()}
+  if(id){delete S.sf['p.'+id]}else{S.sf.nn='';S.sf.np=''}
+  sfm(k,true,id?'Saved.':'Added. They can use this PIN right away.');await loadPeople();
+}
+async function doPinToggle(id,on){
+  var p=S.pins.find(function(x){return x.id===id});S.sfMsg={};S.busyBtn=true;renderPeople();
+  var r=await sb.rpc('admin_save_pin',{p_id:id,p_name:p.name,p_pin:'',p_active:on});S.busyBtn=false;
+  if(r.error)sfm(id,false,errText(r.error));else sfm(id,true,on?'Switched on.':'Switched off. Their PIN no longer works.');await loadPeople();
+}
+async function callStaffFn(body){
+  try{var r=await sb.functions.invoke('staff-accounts',{body:body});
+    if(r.error){var m='',dt='';try{var j=await r.error.context.json();m=j.error||'';dt=j.detail||''}catch(e){}return {error:m||'network',detail:dt}}
+    return r.data||{}}catch(e){return {error:'network'}}
+}
+var FNERR={username_taken:'That username is already taken.',bad_username:'Use 3 to 30 letters, numbers, dots, dashes or underscores. Or type a full email address.',bad_password:'The password needs 8 to 72 characters.',name_required:'Enter a name.',not_a_staff_account:'That is not a staff account.',not_allowed:'Admins only.',network:'Could not reach the server. Try again.',create_failed:'Could not create that login.',reset_failed:'Could not change that password.'};
+async function doLoginCreate(){
+  S.sfMsg={};S.busyBtn=true;renderPeople();
+  var r=await callStaffFn({action:'create',name:S.sf.ln||'',username:S.sf.lu||'',password:S.sf.lp||'',shared:S.sf.ls!==false});S.busyBtn=false;
+  if(r.error){sfm('login',false,(FNERR[r.error]||'Something went wrong.')+(r.detail?' ('+r.detail+')':''));return renderPeople()}
+  S.sf.ln='';S.sf.lu='';S.sf.lp='';
+  sfm('login',true,'Created. They sign in with "'+(r.login.indexOf('@'+STAFF_DOMAIN)>0?r.login.split('@')[0]:r.login)+'" and the password you set. Write it down for them, because staff cannot change it.');await loadPeople();
+}
+async function doLoginPw(id){
+  var pw=S.sf['pw.'+id]||'';S.sfMsg={};S.busyBtn=true;renderPeople();var r=await callStaffFn({action:'reset_password',user_id:id,password:pw});S.busyBtn=false;
+  if(r.error)sfm(id,false,FNERR[r.error]||'Something went wrong.');else{S.sf['pw.'+id]='';sfm(id,true,'New password set. Tell the person; they will use it next time they sign in.')}
+  renderPeople();
+}
+async function doShared(id,on){
+  S.sfMsg={};var r=await sb.rpc('admin_set_needs_pin',{p_user:id,p_flag:on});
+  if(r.error)sfm(id,false,errText(r.error));else sfm(id,true,on?'This login now asks for a PIN at the desk.':'This login no longer asks for a PIN.');await loadPeople();
+}
 async function loadPeople(){
-  var r=await sb.rpc('admin_list_customers');S.people=r.data||[];if(S.view==='people')renderPeople();
+  var r=await sb.rpc('admin_list_customers');S.people=r.data||[];
+  var pr=await sb.rpc('admin_list_pins');S.pins=Array.isArray(pr.data)?pr.data:[];var sh=await sb.rpc('admin_shared_logins');S.shared=(Array.isArray(sh.data)?sh.data:[]).map(String);if(S.view==='people')renderPeople();
 }
 async function loadMine(){
   if(!S.user){S.mine=[];return}
@@ -291,8 +345,9 @@ function tickClock(){
 function renderHead(){tickClock();
   var items=[['book','Book a court']];if(S.user)items.push(['mine','My bookings'],['profile','Profile']);if(S.isStaff)items.push(['front','Front desk'],['staff','Master schedule']);if(S.isAdmin)items.push(['people','Customers'],['settings','Settings']);
   $('nav').innerHTML=items.map(function(i){return '<a href="#'+i[0]+'"'+(S.view===i[0]?' aria-current="page"':'')+'>'+i[1]+'</a>'}).join('');
+  var dk=S.desk?'Desk: <b>'+esc(S.desk.name)+'</b> · <button class="linkbtn" data-act="desk-lock">Lock</button> · ':'';
   var vs=S.realRole==='admin'?'<label class="viewas">Preview as <select data-viewas="1" aria-label="Preview the site as another role">'+[['admin','Admin (me)'],['staff','Staff'],['user','Regular user']].map(function(o){return '<option value="'+o[0]+'"'+(S.role===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label> · ':'';
-  $('who').innerHTML=S.user?vs+esc(S.user.email)+(S.isStaff?' · '+(S.isAdmin?'Admin':'Staff'):'')+' · <button class="linkbtn" data-act="signout">Sign out</button>':'<button class="linkbtn" data-act="show-auth">Sign in</button>';
+  $('who').innerHTML=S.user?dk+vs+esc(S.user.email)+(S.isStaff?' · '+(S.isAdmin?'Admin':'Staff'):'')+' · <button class="linkbtn" data-act="signout">Sign out</button>':'<button class="linkbtn" data-act="show-auth">Sign in</button>';
   if(S.settings)$('tagline').textContent='COURT BOOKING · '+S.courts.length+' COURTS · BADMINTON & PICKLEBALL';
   var pv=S.realRole==='admin'&&S.role!=='admin'?'<div class="notice" role="status">Previewing the site as <b>'+(S.role==='staff'?'Staff':'a regular user')+'</b>. This only changes what you see. Your account is still Admin.</div>':'';
   $('notice').innerHTML=pv+(S.loadErr?'<div class="notice" role="alert">'+esc(S.loadErr)+'</div>':(!S.ready?'<div class="notice">Loading the club schedule…</div>':''));
@@ -363,7 +418,7 @@ function renderStats(){
 function authBox(){
   var m=S.authMode,f=S.form,dis=S.authBusy?' disabled':'';
   var msg=S.authMsg?'<div class="'+(S.authOk?'okmsg':'err')+'" role="alert">'+esc(S.authMsg)+'</div>':'';
-  var email='<label>Email<input id="f-auth-email" data-f="email" type="email" autocomplete="email" value="'+esc(f.email)+'"></label>';
+  var email='<label>'+(S.authMode==='signin'?'Email or staff username':'Email')+'<input id="f-auth-email" data-f="email" type="'+(S.authMode==='signin'?'text':'email')+'" autocomplete="'+(S.authMode==='signin'?'username':'email')+'" autocapitalize="none" value="'+esc(f.email)+'"></label>';
   var pw=function(id,lab,key,ac){return '<label>'+lab+'<input id="'+id+'" data-f="'+key+'" type="password" autocomplete="'+ac+'" value="'+esc(f[key])+'"></label>'};
   var link=function(mode,text){return '<button type="button" class="linkbtn" data-act="auth-mode" data-m="'+mode+'">'+text+'</button>'};
   var btn=function(t){return '<button class="btn" type="submit"'+dis+'>'+(S.authBusy?'Please wait…':t)+'</button>'};
@@ -394,7 +449,7 @@ function panelBook(){
 function panelStaff(){
   if(!S.mSel)return (S.staffMsg?'<div class="okmsg" role="status">'+esc(S.staffMsg)+'</div>':'')+'<h2>Day control</h2><p>Select any square. Open squares take '+(S.isAdmin?'phone bookings, lessons, leagues and maintenance blocks':'phone and walk-up bookings')+'. Booked squares show who has them'+(S.isAdmin?' and let you cancel.':', and let you check people in.')+'</p><p class="muted">The database refuses any second booking for the same court and time, whichever source it comes from.</p>';
   var c=S.courts.find(function(x){return x.id===S.mSel.c}),h=S.mSel.h,rec=staffRec(c.id,h);
-  if(rec){return '<h2>'+esc(c.name)+'</h2><p class="when">'+esc(fmtTs(rec.start_time))+' – '+esc(fmtT(rec.end_time))+'</p><dl><dt>Held by</dt><dd>'+esc(rec.player_name||rec.label||'—')+'</dd><dt>Phone</dt><dd>'+esc(rec.player_phone||'—')+'</dd><dt>Source</dt><dd>'+esc(SOURCES[rec.source])+'</dd><dt>Sport</dt><dd>'+esc(SPORTS[rec.sport]||'—')+'</dd>'+(rec.checked_in_at?'<dt>Checked in</dt><dd>'+esc(new Date(rec.checked_in_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:S.settings.timezone}))+' · '+rec.guest_count+' guest'+(+rec.guest_count===1?'':'s')+(rec.check_in_note?' · '+esc(rec.check_in_note):'')+'</dd>':'')+'<dt>Payment</dt><dd>'+esc(rec.status==='pending_payment'?'Awaiting payment':rec.payment_status==='paid'?'Paid '+money(rec.price,rec.currency):rec.source==='web'?'Pay at the club':'—')+'</dd><dt>Reference</dt><dd style="font-family:var(--font-mono)">'+esc(rec.reference)+'</dd></dl>'+(S.err?'<div class="err" role="alert">'+esc(S.err)+'</div>':'')+
+  if(rec){return '<h2>'+esc(c.name)+'</h2><p class="when">'+esc(fmtTs(rec.start_time))+' – '+esc(fmtT(rec.end_time))+'</p><dl><dt>Held by</dt><dd>'+esc(rec.player_name||rec.label||'—')+'</dd><dt>Phone</dt><dd>'+esc(rec.player_phone||'—')+'</dd><dt>Source</dt><dd>'+esc(SOURCES[rec.source])+'</dd><dt>Sport</dt><dd>'+esc(SPORTS[rec.sport]||'—')+'</dd>'+(rec.created_by_name?'<dt>Booked by</dt><dd>'+esc(rec.created_by_name)+'</dd>':'')+(rec.checked_in_at?'<dt>Checked in</dt><dd>'+esc(new Date(rec.checked_in_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:S.settings.timezone}))+' · '+rec.guest_count+' guest'+(+rec.guest_count===1?'':'s')+(rec.checked_in_by_name?' · by '+esc(rec.checked_in_by_name):'')+(rec.check_in_note?' · '+esc(rec.check_in_note):'')+'</dd>':'')+'<dt>Payment</dt><dd>'+esc(rec.status==='pending_payment'?'Awaiting payment':rec.payment_status==='paid'?'Paid '+money(rec.price,rec.currency):rec.source==='web'?'Pay at the club':'—')+'</dd><dt>Reference</dt><dd style="font-family:var(--font-mono)">'+esc(rec.reference)+'</dd></dl>'+(S.err?'<div class="err" role="alert">'+esc(S.err)+'</div>':'')+
     (rec.blockId||rec.status!=='confirmed'?'':rec.checked_in_at?'<button class="btn ghost" data-act="undo-in" data-id="'+esc(rec.id)+'"'+(S.busyBtn?' disabled':'')+'>Undo check-in</button>':(function(){var n=new Date(),st=new Date(rec.start_time),en=new Date(rec.end_time);if(n<new Date(st-30*60000)||n>en)return '<p class="muted">Check-in opens 30 minutes before the start.</p>';return '<div class="setbox" style="background:var(--bg)"><b>Check in</b><p class="muted">Confirm the person is who booked (ask for the reference or ID) and count anyone with them.</p><label>Guests with them<input id="f-guests" data-f="guests" type="number" min="0" max="20" inputmode="numeric" value="'+esc(S.form.guests||'0')+'"></label><label>Note (optional)<input id="f-cnote" data-f="cnote" placeholder="e.g. ID checked" value="'+esc(S.form.cnote||'')+'"></label><button class="btn" data-act="check-in" data-id="'+esc(rec.id)+'"'+(S.busyBtn?' disabled':'')+'>Check in</button></div>'})())+(rec.source==='web'&&rec.status==='confirmed'&&!rec.blockId&&!rec.checked_in_at&&new Date(+new Date(rec.start_time)+nsWait()*60000)<=new Date()?(S.confirmNoShow?'<p class="err">Mark this as a no-show and reopen the slot?</p><div class="row"><button class="btn danger" data-act="noshow-yes" data-id="'+esc(rec.id)+'"'+(S.busyBtn?' disabled':'')+'>Yes, no-show</button><button class="btn ghost" data-act="noshow-no">Not yet</button></div>':'<button class="btn" data-act="noshow">Mark no-show</button>'):(rec.source==='web'&&rec.status==='confirmed'&&!rec.blockId&&!rec.checked_in_at&&new Date(rec.start_time)<=new Date()?'<p class="muted">You can mark a no-show from '+esc(fmtT(new Date(+new Date(rec.start_time)+nsWait()*60000).toISOString()))+' ('+nsWait()+' minutes after the start).</p>':''))+(!canCancelRec(rec)?'<p class="muted">Only an admin can cancel this booking or remove a block.</p>':S.confirmCancel?'<p class="err">'+(rec.blockId?'Remove this block?':'Cancel this booking and free the court?'+(rec.payment_status==="paid"&&rec.user_id?(rec.razorpay_payment_id?' The player is refunded '+money(Number(rec.price)-Number(rec.credit_applied||0),rec.currency)+' to their payment method'+(Number(rec.credit_applied)>0?' and '+money(rec.credit_applied,rec.currency)+' goes back to their credit.':'.'):' The player gets '+money(rec.price,rec.currency)+' as credit.'):''))+'</p><div class="row"><button class="btn danger" data-act="cancel-yes" data-id="'+esc(rec.id)+'"'+(S.busyBtn?' disabled':'')+'>Yes</button><button class="btn ghost" data-act="cancel-no">Keep it</button></div>':'<button class="btn ghost" data-act="cancel">'+(rec.blockId?'Remove block':'Cancel booking')+'</button>');}
   var t=S.isAdmin?S.form.stype:'desk',maxLen=Math.min(4,parseInt(c.close_time,10)-h),o='';for(var i=1;i<=maxLen;i++)o+='<option value="'+i+'"'+(+S.form.slen===i?' selected':'')+'>'+i+' hour'+(i>1?'s':'')+'</option>';
   return '<h2>'+esc(c.name)+'</h2><p class="when">'+esc(dlabel(S.date))+' · from '+fmt(h)+'</p><label>Type<select id="f-stype" data-f="stype"><option value="desk"'+(t==='desk'?' selected':'')+'>Phone or walk-up booking</option>'+(S.isAdmin?'<option value="program"'+(t==='program'?' selected':'')+'>Lesson or league</option><option value="hold"'+(t==='hold'?' selected':'')+'>Maintenance block</option>':'')+'</select></label>'+
@@ -403,14 +458,37 @@ function panelStaff(){
    '<label>Length<select id="f-slen" data-f="slen">'+o+'</select></label>'+(S.err?'<div class="err" role="alert">'+esc(S.err)+'</div>':'')+'<button class="btn" data-act="staff-add"'+(S.busyBtn?' disabled':'')+'>Add to schedule</button>';
 }
 function renderPanel(){if(!S.ready){$('panel').innerHTML='';return}$('panel').innerHTML=S.view==='staff'?panelStaff():panelBook()}
+function cancelOutcome(b,sim){
+  var st=S.settings,cur=b.currency,t=+new Date(b.start_time)-Date.now(),lm=st.late_cancel_lock_minutes==null?15:+st.late_cancel_lock_minutes,lock=lm*60000,cut=st.cancel_cutoff_hours*3600000,
+    paid=sim||b.payment_status==='paid',priv=S.realRole==='admin'&&!sim,cred=Number(b.credit_applied||0),cash=Math.max(Number(b.price)-cred,0),card=sim?true:!!b.razorpay_payment_id;
+  if(b.status==='pending_payment')return 'This releases the held slot.'+(cred>0?' '+money(cred,cur)+' of credit you applied goes back to your credit.':'');
+  if(!paid)return 'Nothing was paid online for this booking, so there is nothing to refund and no credit. The slot opens up for other players.';
+  if(priv||t>=cut){var pp=[];
+    if(cash>0)pp.push(card?money(cash,cur)+' is refunded to your original payment method (banks take 5 to 7 working days)':money(cash,cur)+' is added to your credit');
+    if(cred>0)pp.push(money(cred,cur)+' of credit you used goes back to your credit');
+    return (pp.join('. ')||'There is nothing to refund')+'.'}
+  if(t<lock){var g=Math.round(Number(b.price)*lmPct())/100;return money(g,cur)+' ('+lmPct()+'% of '+money(b.price,cur)+') is added to your credit, because the game starts in under '+lm+' minutes. The rest is not returned. Credit is used automatically on your next booking.'}
+  return money(b.price,cur)+' is added to your credit, not refunded to your card, because this is inside the free-cancellation window. Credit is used automatically on your next booking.';
+}
+function cancelPanel(b){
+  var sim=S.realRole==='admin'&&S.simPaid,txt=cancelOutcome(b,sim);
+  return '<div class="fd-pan" style="flex-basis:100%"><p><b>Cancel this booking?</b></p><p>'+esc(txt)+'</p>'+(S.realRole==='admin'?'<label class="check"><input type="checkbox" data-sim="1"'+(S.simPaid?' checked':'')+'>Test only: pretend this was paid online. Nothing is changed.</label>':'')+
+    '<div class="row"><button class="btn" data-act="mine-cancel-yes" data-id="'+esc(b.id)+'"'+(S.busyBtn?' disabled':'')+'>'+(sim?'Show the result (no changes)':'Yes, cancel it')+'</button><button class="btn ghost" data-act="mine-cancel-no">Keep my booking</button></div></div>';
+}
 function renderMine(){
   var now=new Date();
   $('v-mine').innerHTML='<h2 style="margin-top:20px">My bookings</h2>'+(S.mine.length?'<div class="list">'+S.mine.map(function(b){
     var up=new Date(b.end_time)>now&&b.status!=='cancelled';var pend=b.status==='pending_payment'&&holdLeft(b)>0,canC=new Date(b.start_time)-now>0,lastM=new Date(b.start_time)-now<(S.settings.late_cancel_lock_minutes==null?15:S.settings.late_cancel_lock_minutes)*60000,freeC=new Date(b.start_time)-now>=S.settings.cancel_cutoff_hours*3600000;var PS={credited:'Added to your credit',refund_due:'Refund on its way',refunded:'Refunded',refund_failed:'Refund pending (club will follow up)'};
-    return '<div class="item"><div><h3>'+esc(courtName(b.court_id))+' · '+SPORTS[b.sport]+'</h3><div>'+esc(fmtTs(b.start_time))+' – '+esc(fmtT(b.end_time))+' · '+money(b.price,b.currency)+'</div><div class="muted" style="font-family:var(--font-mono)">'+esc(b.reference)+'</div></div><div class="row" style="flex:none;align-items:center">'+(b.status==='cancelled'?'<span class="tag cx">'+(b.no_show?'No-show':'Cancelled')+(PS[b.payment_status]?' · '+PS[b.payment_status]:'')+'</span>':pend?'<button class="btn" data-act="mine-pay" data-id="'+b.id+'"'+(S.busyBtn?' disabled':'')+'>Pay now</button><button class="btn ghost" data-act="mine-cancel" data-id="'+b.id+'">Release</button>':b.status==='pending_payment'?'<span class="tag cx">Expired</span>':up?(canC?'<button class="btn ghost" data-act="mine-cancel" data-id="'+b.id+'">Cancel'+(b.payment_status==='paid'?(freeC&&b.razorpay_payment_id?' for refund':lastM?' for '+lmPct()+'% credit':' for credit'):'')+'</button>':'<span class="tag cx">No cancellation now</span>'):(b.checked_in_at?'<span class="tag cx">Attended</span>':'<span class="tag cx">Past</span>'))+'</div></div>'}).join('')+'</div>':'<p class="muted" style="margin-top:12px">No bookings yet.</p>')+(S.mineMsg?'<div class="okmsg" role="status" style="margin-top:10px">'+esc(S.mineMsg)+'</div>':'')+(S.err?'<div class="err" role="alert" style="margin-top:10px">'+esc(S.err)+'</div>':'');
+    return '<div class="item"><div><h3>'+esc(courtName(b.court_id))+' · '+SPORTS[b.sport]+'</h3><div>'+esc(fmtTs(b.start_time))+' – '+esc(fmtT(b.end_time))+' · '+money(b.price,b.currency)+'</div><div class="muted" style="font-family:var(--font-mono)">'+esc(b.reference)+'</div></div><div class="row" style="flex:none;align-items:center">'+(b.status==='cancelled'?'<span class="tag cx">'+(b.no_show?'No-show':'Cancelled')+(PS[b.payment_status]?' · '+PS[b.payment_status]:'')+'</span>':pend?'<button class="btn" data-act="mine-pay" data-id="'+b.id+'"'+(S.busyBtn?' disabled':'')+'>Pay now</button><button class="btn ghost" data-act="mine-release" data-id="'+b.id+'">Release</button>':b.status==='pending_payment'?'<span class="tag cx">Expired</span>':up?(canC?'<button class="btn ghost" data-act="mine-cancel" data-id="'+b.id+'">Cancel'+(b.payment_status==='paid'?(freeC&&b.razorpay_payment_id?' for refund':lastM?' for '+lmPct()+'% credit':' for credit'):'')+'</button>':'<span class="tag cx">No cancellation now</span>'):(b.checked_in_at?'<span class="tag cx">Attended</span>':'<span class="tag cx">Past</span>'))+'</div>'+(S.cancelAsk===b.id&&up&&canC&&!pend?cancelPanel(b):'')+'</div>'}).join('')+'</div>':'<p class="muted" style="margin-top:12px">No bookings yet.</p>')+(S.mineMsg?'<div class="okmsg" role="status" style="margin-top:10px">'+esc(S.mineMsg)+'</div>':'')+(S.err?'<div class="err" role="alert" style="margin-top:10px">'+esc(S.err)+'</div>':'');
+}
+function renderLock(){
+  var el=$('v-lock'),l=S.lockMsg?'<div class="err" role="alert">'+esc(S.lockMsg)+'</div>':'';
+  el.innerHTML='<form class="lockcard" data-form="pin" autocomplete="off"><h2>Who is at the desk?</h2><p class="muted">Enter your PIN to open the front desk and the schedule. It locks again after a few quiet minutes.</p><input id="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-label="Your PIN">'+l+'<button class="btn" type="submit"'+(S.busyBtn?' disabled':'')+'>Unlock</button></form>';
 }
 function renderAll(){
   renderHead();
+  if(deskLocked()&&(S.view==='front'||S.view==='staff')){['v-grid','v-mine','v-settings','v-profile','v-people','v-front'].forEach(function(x){$(x).hidden=true});$('v-lock').hidden=false;renderLock();return}
+  $('v-lock').hidden=true;
   var g=S.view==='book'||S.view==='staff';$('v-grid').hidden=!g;$('v-mine').hidden=S.view!=='mine';$('v-settings').hidden=S.view!=='settings';$('v-profile').hidden=S.view!=='profile';$('v-people').hidden=S.view!=='people';$('v-front').hidden=S.view!=='front';
   if(g){renderToolbar();renderStats();renderGrid();renderPanel()}else if(S.view==='mine')renderMine();else if(S.view==='profile')renderProfile();else if(S.view==='people')renderPeople();else if(S.view==='front')renderFront();else renderSettings();
 }
@@ -442,8 +520,12 @@ function renderPeople(){
   var el=$('v-people'),L=S.people;
   if(L===null){el.innerHTML='<p class="muted" style="margin-top:20px">Loading customers…</p>';return}
   var m=S.pplMsg||{};
-  el.innerHTML='<h2 style="margin-top:20px">Customers</h2><p class="muted" style="margin-top:6px">Set a person\'s role (User, Staff or Admin) and add or remove credit. Credit is in '+esc(S.settings.currency)+' and is used automatically on their next booking.</p><div class="list">'+
-   (L.length?L.map(function(c){return '<div class="item"><div><h3>'+esc(c.full_name||c.email)+'</h3><div class="muted">'+esc(c.email)+(c.phone?' · '+esc(c.phone):'')+'</div><div>'+c.bookings+' booking'+(+c.bookings===1?'':'s')+(+c.no_shows?' · <b>'+c.no_shows+' no-show'+(+c.no_shows===1?'':'s')+'</b>':'')+'</div></div>'+
+  var b0=S.busyBtn?' disabled':'',sm=function(k){var x=S.sfMsg[k];return x?'<div class="'+(x.ok?'okmsg':'err')+'" role="alert">'+esc(x.t)+'</div>':''};
+  var pinRows=(S.pins||[]).map(function(p){return '<div class="item"><div><h3>'+esc(p.name)+'</h3><div class="muted">'+(p.active?'Active':'Switched off')+'</div></div><div class="sfrow"><label style="margin:0">Name<input data-sf="n.'+p.id+'" maxlength="40" value="'+esc(sfv('n.'+p.id,p.name))+'"></label><label style="margin:0">New PIN<input data-sf="p.'+p.id+'" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="keep current" value="'+esc(sfv('p.'+p.id,''))+'" style="width:130px"></label><button class="btn ghost" data-act="pin-save" data-id="'+p.id+'"'+b0+'>Save</button><button class="btn ghost" data-act="pin-toggle" data-id="'+p.id+'" data-v="'+(p.active?0:1)+'"'+b0+'>'+(p.active?'Switch off':'Switch on')+'</button></div>'+sm(p.id)+'</div>'}).join('');
+  var pinTile=tile('pins','Desk staff and PINs',(S.pins||[]).filter(function(p){return p.active}).length+' active · each person at a shared desk login has their own PIN','<div class="tbody"><p class="muted">When several people share one staff login, each one enters their own PIN at the desk. Check-ins, no-shows and phone bookings are then recorded under their name. A PIN is 4 to 6 digits and cannot be shared by two people.</p><div class="list">'+pinRows+'</div><div class="sfrow"><label style="margin:0">Name<input data-sf="nn" maxlength="40" value="'+esc(sfv('nn',''))+'"></label><label style="margin:0">PIN<input data-sf="np" inputmode="numeric" maxlength="6" autocomplete="off" value="'+esc(sfv('np',''))+'" style="width:130px"></label><button class="btn" data-act="pin-add"'+b0+'>Add person</button></div>'+sm('new')+'</div>');
+  var loginTile=tile('login','Add a staff login','Create a username and password for the club desk. Staff cannot change the password.','<div class="tbody"><p class="muted">You choose the username and password and give them to staff. Staff have no way to change the password. Only you can set a new one, from their row below. Type a full email address instead of a username if you want a personal login.</p><div class="sfrow"><label style="margin:0">Name shown<input data-sf="ln" maxlength="60" placeholder="Front desk" value="'+esc(sfv('ln',''))+'"></label><label style="margin:0">Username<input data-sf="lu" maxlength="60" autocomplete="off" autocapitalize="none" placeholder="frontdesk" value="'+esc(sfv('lu',''))+'"></label><label style="margin:0">Password (8+)<input data-sf="lp" autocomplete="off" value="'+esc(sfv('lp',''))+'"></label></div><label class="check"><input type="checkbox" data-sfc="ls"'+(S.sf.ls!==false?' checked':'')+'>Shared by several people (ask for a PIN at the desk)</label><button class="btn" data-act="login-create"'+b0+'>Create staff login</button>'+sm('login')+'</div>');
+  el.innerHTML='<h2 style="margin-top:20px">Customers</h2><div class="setgrid" style="margin-bottom:6px">'+pinTile+loginTile+'</div><p class="muted" style="margin-top:6px">Set a person\'s role (User, Staff or Admin) and add or remove credit. Credit is in '+esc(S.settings.currency)+' and is used automatically on their next booking.</p><div class="list">'+
+   (L.length?L.map(function(c){return '<div class="item"><div><h3>'+esc(c.full_name||c.email)+'</h3><div class="muted">'+esc(c.email)+(c.phone?' · '+esc(c.phone):'')+'</div><div>'+c.bookings+' booking'+(+c.bookings===1?'':'s')+(+c.no_shows?' · <b>'+c.no_shows+' no-show'+(+c.no_shows===1?'':'s')+'</b>':'')+'</div>'+(c.role==='staff'?'<div class="sfrow" style="margin-top:8px"><label class="check" style="margin:0"><input type="checkbox" data-shared="'+c.id+'"'+(S.shared.indexOf(String(c.id))>-1?' checked':'')+'>Shared login (PIN)</label><label style="margin:0">New password<input data-sf="pw.'+c.id+'" autocomplete="off" placeholder="8+ characters" value="'+esc(sfv('pw.'+c.id,''))+'" style="width:170px"></label><button class="btn ghost" data-act="login-pw" data-id="'+c.id+'"'+b0+'>Set password</button></div>'+sm(c.id):'')+'</div>'+
     '<div class="row" style="flex:none;align-items:flex-end;flex-wrap:wrap;gap:8px"><label style="margin:0">Role<select data-role="'+c.id+'"'+(S.user&&c.id===S.user.id?' disabled':'')+'>'+['user','staff','admin'].map(function(r){return '<option value="'+r+'"'+((c.role||'user')===r?' selected':'')+'>'+({user:'User',staff:'Staff',admin:'Admin'})[r]+'</option>'}).join('')+'</select></label><div><span class="muted">Credit</span><br><b style="font-size:20px">'+money(c.credit)+'</b></div>'+
     '<label style="margin:0">Amount (+ or −)<input style="width:110px" type="number" step="0.5" inputmode="decimal" data-ppl="'+c.id+'.amt" value="'+esc((S.pplIn&&S.pplIn[c.id]&&S.pplIn[c.id].amt)||'')+'"></label>'+
     '<label style="margin:0">Reason<input style="width:170px" data-ppl="'+c.id+'.note" value="'+esc((S.pplIn&&S.pplIn[c.id]&&S.pplIn[c.id].note)||'')+'"></label>'+
@@ -526,7 +608,7 @@ async function loadFront(){
 function fdInfo(b){
   var now=Date.now(),st=+new Date(b.start_time),en=+new Date(b.end_time),w=nsWait()*60000,diff=Math.floor((now-st)/60000),id=esc(b.id);
   if(b.status==='cancelled')return{k:'ns',tag:'<span class="tag cx">No-show</span>',act:'',attn:false,arr:false};
-  if(b.checked_in_at)return{k:'in',tag:'<span class="tag ok">Present'+(+b.guest_count?' · +'+b.guest_count+' guest'+(+b.guest_count===1?'':'s'):'')+'</span>',act:'<button class="btn ghost" data-act="front-undo" data-id="'+id+'">Undo</button>',attn:false,arr:false};
+  if(b.checked_in_at)return{k:'in',tag:'<span class="tag ok">Present'+(+b.guest_count?' · +'+b.guest_count+' guest'+(+b.guest_count===1?'':'s'):'')+(b.checked_in_by_name?' · by '+esc(b.checked_in_by_name):'')+'</span>',act:'<button class="btn ghost" data-act="front-undo" data-id="'+id+'">Undo</button>',attn:false,arr:false};
   if(now>en)return{k:'end',tag:'<span class="tag cx">Not checked in · ended</span>',act:'',attn:false,arr:false};
   if(now<st-FD_OPEN*60000)return{k:'up',tag:'<span class="tag cx">Opens '+esc(fmtT(new Date(st-FD_OPEN*60000).toISOString()))+'</span>',act:'<button class="btn ghost" disabled>Check in</button>',attn:false,arr:false};
   var ci='<button class="btn" data-act="front-open" data-id="'+id+'">Check in</button>';
@@ -567,14 +649,14 @@ function renderFrontList(){
 async function doFrontCheckIn(id){
   var d=S.frontDraft||{g:0,idc:false,note:''},note=((d.idc?'ID checked':'')+(d.idc&&d.note.trim()?' · ':'')+d.note.trim())||null;
   S.busyBtn=true;S.frontErr='';renderFrontList();
-  var r=await sb.rpc('check_in',{p_booking_id:id,p_guests:d.g,p_note:note});S.busyBtn=false;
+  var r=await sb.rpc('check_in',{p_booking_id:id,p_guests:d.g,p_note:note,p_token:tok()});S.busyBtn=false;
   if(r.error){var m=r.error.message||'';S.frontErr=/too_early/.test(m)?'Check-in opens 30 minutes before the start.':/already_over/.test(m)?'That booking has already ended.':errText(r.error)}
   else{var b=(S.front||[]).find(function(x){return x.id===id});S.frontMsg=(b&&b.player_name?b.player_name:'Player')+' is marked present'+(d.g?' with '+d.g+' guest'+(d.g===1?'':'s'):'')+'.';S.frontOpen=null}
   await loadFront();
 }
-async function doFrontUndo(id){S.frontErr='';var r=await sb.rpc('undo_check_in',{p_booking_id:id});if(r.error)S.frontErr=errText(r.error);else S.frontMsg='Check-in undone.';await loadFront()}
+async function doFrontUndo(id){S.frontErr='';var r=await sb.rpc('undo_check_in',{p_booking_id:id,p_token:tok()});if(r.error)S.frontErr=errText(r.error);else S.frontMsg='Check-in undone.';await loadFront()}
 async function doFrontNoShow(id){
-  S.busyBtn=true;S.frontErr='';renderFrontList();var r=await sb.rpc('mark_no_show',{p_booking_id:id});S.busyBtn=false;S.frontNs=null;
+  S.busyBtn=true;S.frontErr='';renderFrontList();var r=await sb.rpc('mark_no_show',{p_booking_id:id,p_token:tok()});S.busyBtn=false;S.frontNs=null;
   if(r.error)S.frontErr=errText(r.error);else S.frontMsg='Marked as a no-show. The slot is open again'+(r.data&&r.data.payment_status==='credited'?' and the player was given credit.':'.');
   await loadFront();
 }
@@ -585,7 +667,7 @@ async function doStaffAdd(){
   if(S.err)return renderPanel();
   S.busyBtn=true;renderPanel();var start=zoned(S.date,h,S.settings.timezone),res;
   if(t==='hold')res=await sb.from('blocked_slots').insert({court_id:c.id,start_time:start.toISOString(),end_time:zoned(S.date,h+len,S.settings.timezone).toISOString(),reason:f.reason.trim()});
-  else res=await sb.rpc('admin_create_booking',{p_court_id:c.id,p_sport:f.ssport,p_start:start.toISOString(),p_hours:len,p_source:t,p_label:t==='program'?f.reason.trim():null,p_player_name:t==='desk'?f.name.trim():null,p_player_phone:t==='desk'?(f.phone.trim()||null):null});
+  else res=await sb.rpc('admin_create_booking',{p_court_id:c.id,p_sport:f.ssport,p_start:start.toISOString(),p_hours:len,p_source:t,p_label:t==='program'?f.reason.trim():null,p_player_name:t==='desk'?f.name.trim():null,p_player_phone:t==='desk'?(f.phone.trim()||null):null,p_token:tok()});
   S.busyBtn=false;
   if(res.error){S.err=(res.error.message||'').indexOf('slot_')>-1||/overlap|exclusion|conflict/i.test(res.error.message||'')?'One of those hours is already held.':errText(res.error)}
   else{S.form.name='';S.form.phone='';S.form.reason='';S.form.slen=1}
@@ -593,24 +675,24 @@ async function doStaffAdd(){
 }
 async function doCheckIn(id){
   var g=parseInt(S.form.guests,10);if(isNaN(g)||g<0||g>20){S.err='Guests must be a number from 0 to 20.';return renderPanel()}
-  S.busyBtn=true;S.err='';renderPanel();var r=await sb.rpc('check_in',{p_booking_id:id,p_guests:g,p_note:(S.form.cnote||'').trim()||null});S.busyBtn=false;
+  S.busyBtn=true;S.err='';renderPanel();var r=await sb.rpc('check_in',{p_booking_id:id,p_guests:g,p_note:(S.form.cnote||'').trim()||null,p_token:tok()});S.busyBtn=false;
   if(r.error){var m=r.error.message||'';S.err=/too_early/.test(m)?'Check-in opens 30 minutes before the start.':/already_over/.test(m)?'That booking has already ended.':errText(r.error)}
   else{S.form.guests='0';S.form.cnote='';S.staffMsg='Checked in'+(g?' with '+g+' guest'+(g===1?'':'s'):'')+'.'}
   await refresh();renderGrid();renderPanel();
 }
 async function doUndoCheckIn(id){
-  S.busyBtn=true;renderPanel();var r=await sb.rpc('undo_check_in',{p_booking_id:id});S.busyBtn=false;if(r.error)S.err=errText(r.error);
+  S.busyBtn=true;renderPanel();var r=await sb.rpc('undo_check_in',{p_booking_id:id,p_token:tok()});S.busyBtn=false;if(r.error)S.err=errText(r.error);
   await refresh();renderGrid();renderPanel();
 }
 async function doNoShow(id){
-  S.busyBtn=true;renderPanel();var r=await sb.rpc('mark_no_show',{p_booking_id:id});S.busyBtn=false;S.confirmNoShow=false;
+  S.busyBtn=true;renderPanel();var r=await sb.rpc('mark_no_show',{p_booking_id:id,p_token:tok()});S.busyBtn=false;S.confirmNoShow=false;
   if(r.error)S.err=errText(r.error);
   else{S.mSel=null;S.err='';S.staffMsg='Marked as a no-show. The slot is open again for walk-ins'+(r.data.payment_status==='credited'?' and the player was given credit.':'.')}
   await refresh();renderPanel();
 }
 async function doStaffCancel(id){
   S.busyBtn=true;renderPanel();var rec=S.staffRows.find(function(x){return String(x.id)===id}),res;
-  if(rec&&rec.blockId)res=await sb.from('blocked_slots').delete().eq('id',rec.blockId);else res=await sb.rpc('cancel_booking',{p_booking_id:id});
+  if(rec&&rec.blockId)res=await sb.from('blocked_slots').delete().eq('id',rec.blockId);else res=await sb.rpc('cancel_booking',{p_booking_id:id,p_token:tok()});
   S.busyBtn=false;S.confirmCancel=false;if(res.error)S.err=errText(res.error);else{S.mSel=null;S.err='';var d=res.data||{};if(d.payment_status==='refund_due'){var rf=await doRefund(id);S.staffMsg=money(Number(d.price)-Number(d.credit_applied||0),d.currency)+(rf&&rf.ok?' is being refunded to the player\'s original payment method.':' still has to be refunded. The player can see it as pending, and you can retry from Razorpay.')}else if(d.payment_status==='credited')S.staffMsg=money(d.credit_applied>0&&d.razorpay_payment_id?d.credit_applied:d.price,d.currency)+' was added to the player\'s credit.'}
   await refresh();renderPanel();
 }
@@ -644,7 +726,10 @@ function authErr(e){
 }
 async function doAuth(){
   var m=S.authMode,f=S.form,em=(f.email||'').trim(),back=location.origin+location.pathname;S.authMsg='';S.authOk=false;
-  if(m!=='reset'&&!/^\S+@\S+\.\S+$/.test(em))S.authMsg='Enter a valid email address.';
+  if(m==='forgot'&&em&&em.indexOf('@')<0)S.authMsg='Club staff logins cannot be reset here. Ask the club admin to set a new password.';
+  else if(m==='signin'&&em&&em.indexOf('@')<0&&/^[a-z0-9._-]{3,30}$/i.test(em))em=em.toLowerCase()+'@'+STAFF_DOMAIN;
+  if(S.authMsg){}
+  else if(m!=='reset'&&!/^\S+@\S+\.\S+$/.test(em))S.authMsg='Enter a valid email address.';
   else if(m==='signin'&&!f.password)S.authMsg='Enter your password.';
   else if(m==='signup'&&!f.name.trim())S.authMsg='Enter your name.';
   else if((m==='signup'||m==='reset')&&(f.password||'').length<8)S.authMsg='Use at least 8 characters for your password.';
@@ -770,7 +855,7 @@ async function saveCfg(sec){
 }
 
 /* ---------- events ---------- */
-document.addEventListener('click',function(e){
+document.addEventListener('click',function(e){S.lastAct=Date.now();
   var t=e.target.closest('[data-act]');if(!t)return;var a=t.dataset.act;
   if(a==='date'){S.date=t.dataset.d;S.sel=null;S.dur=1;S.mSel=null;S.done=null;S.err='';S.confirmCancel=false;renderToolbar();refresh().then(renderPanel)}
   else if(a==='sport'){S.sport=t.dataset.v;S.quote=null;if(S.sel&&S.sel.c==='auto'&&isPast(S.date,S.sel.h))S.sel=null;renderToolbar();renderGrid();renderPanel();loadReopen().then(function(){renderGrid();loadQuote()})}
@@ -781,14 +866,23 @@ document.addEventListener('click',function(e){
   else if(a==='again'){S.done=null;renderPanel()}
   else if(a==='show-auth'){S.showAuth=true;S.authMode='signin';S.authMsg='';S.sel=null;renderGrid();renderPanel()}
   else if(a==='auth-mode'){S.authMode=t.dataset.m;S.authMsg='';S.authOk=false;renderPanel()}
-  else if(a==='signout'){sb.auth.signOut().then(function(){S.user=null;S.isAdmin=false;S.isStaff=false;S.role='user';S.mine=[];location.hash='#book';init(true)})}
+  else if(a==='signout'){sb.auth.signOut().then(function(){S.desk=null;S.needsPin=false;S.user=null;S.isAdmin=false;S.isStaff=false;S.role='user';S.mine=[];location.hash='#book';init(true)})}
   else if(a==='open'){S.mSel={c:t.dataset.c,h:+t.dataset.h};S.err='';S.staffMsg='';S.confirmCancel=false;S.confirmNoShow=false;renderGrid();renderPanel()}
   else if(a==='staff-add')doStaffAdd();
   else if(a==='cancel'){S.confirmCancel=true;renderPanel()}
   else if(a==='cancel-no'){S.confirmCancel=false;renderPanel()}
   else if(a==='cancel-yes')doStaffCancel(t.dataset.id);
-  else if(a==='tile'){S.setOpen=S.setOpen||{};S.setOpen[t.dataset.t]=!S.setOpen[t.dataset.t];renderSettings()}
-  else if(a==='mine-cancel')doMineCancel(t.dataset.id);
+  else if(a==='desk-lock'){var tk=tok();S.desk=null;if(tk)sb.rpc('lock_desk',{p_token:tk});renderAll()}
+  else if(a==='pin-add')doPinSave(null);
+  else if(a==='pin-save')doPinSave(t.dataset.id);
+  else if(a==='pin-toggle')doPinToggle(t.dataset.id,t.dataset.v==='1');
+  else if(a==='login-create')doLoginCreate();
+  else if(a==='login-pw')doLoginPw(t.dataset.id);
+  else if(a==='tile'){S.setOpen=S.setOpen||{};S.setOpen[t.dataset.t]=!S.setOpen[t.dataset.t];if(S.view==='people')renderPeople();else renderSettings()}
+  else if(a==='mine-cancel'){S.cancelAsk=t.dataset.id;S.err='';S.mineMsg='';renderMine()}
+  else if(a==='mine-cancel-no'){S.cancelAsk=null;renderMine()}
+  else if(a==='mine-cancel-yes'){var cb2=S.mine.find(function(x){return String(x.id)===String(t.dataset.id)});S.cancelAsk=null;if(cb2&&S.realRole==='admin'&&S.simPaid){S.mineMsg='TEST ONLY, nothing was changed. If this booking had been paid online: '+cancelOutcome(cb2,true);renderMine()}else doMineCancel(t.dataset.id)}
+  else if(a==='mine-release')doMineCancel(t.dataset.id);
   else if(a==='front-filter'){S.frontFilter=t.dataset.v;renderFront()}
   else if(a==='front-open'){S.frontOpen=t.dataset.id;S.frontNs=null;S.frontDraft={g:0,idc:false,note:''};S.frontMsg='';S.frontErr='';renderFrontList()}
   else if(a==='front-close'){S.frontOpen=null;renderFrontList()}
@@ -813,9 +907,10 @@ document.addEventListener('click',function(e){
   else if(a==='save-marker')saveCfg('marker');
   else if(a==='save-courts')saveCfg('courts');
 });
-document.addEventListener('submit',function(e){var fm=e.target;if(fm.dataset&&fm.dataset.form==='auth'){e.preventDefault();doAuth()}});
-document.addEventListener('input',function(e){if(e.target.id==='fd-q'){S.frontQ=e.target.value;renderFrontList();return}if(e.target.id==='fd-note'){S.frontDraft.note=e.target.value;return}if(e.target.dataset&&e.target.dataset.f==='useCredit')return;var pp=e.target.dataset&&e.target.dataset.ppl;if(pp){var q=pp.split('.');S.pplIn=S.pplIn||{};S.pplIn[q[0]]=S.pplIn[q[0]]||{};S.pplIn[q[0]][q[1]]=e.target.value}setCfg(e.target);var f=e.target.dataset&&e.target.dataset.f;if(f)S.form[f]=e.target.value});
-document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.viewas){S.viewAs=e.target.value==='admin'?null:e.target.value;try{sessionStorage.setItem('sv_viewas',S.viewAs||'')}catch(x){}applyRole();S.mSel=null;route();return}if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&/^s\.booked_/.test(e.target.dataset.k||''))renderSettings();var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
+document.addEventListener('submit',function(e){var fm=e.target;if(fm.dataset&&fm.dataset.form==='pin'){e.preventDefault();doUnlock();return}if(fm.dataset&&fm.dataset.form==='auth'){e.preventDefault();doAuth()}});
+document.addEventListener('keydown',function(){S.lastAct=Date.now()});
+document.addEventListener('input',function(e){if(e.target.dataset&&e.target.dataset.sf){S.sf[e.target.dataset.sf]=e.target.value;return}if(e.target.id==='fd-q'){S.frontQ=e.target.value;renderFrontList();return}if(e.target.id==='fd-note'){S.frontDraft.note=e.target.value;return}if(e.target.dataset&&e.target.dataset.f==='useCredit')return;var pp=e.target.dataset&&e.target.dataset.ppl;if(pp){var q=pp.split('.');S.pplIn=S.pplIn||{};S.pplIn[q[0]]=S.pplIn[q[0]]||{};S.pplIn[q[0]][q[1]]=e.target.value}setCfg(e.target);var f=e.target.dataset&&e.target.dataset.f;if(f)S.form[f]=e.target.value});
+document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.sim){S.simPaid=e.target.checked;renderMine();return}if(e.target.dataset&&e.target.dataset.shared){doShared(e.target.dataset.shared,e.target.checked);return}if(e.target.dataset&&e.target.dataset.sfc){S.sf[e.target.dataset.sfc]=e.target.checked;return}if(e.target.dataset&&e.target.dataset.viewas){S.viewAs=e.target.value==='admin'?null:e.target.value;try{sessionStorage.setItem('sv_viewas',S.viewAs||'')}catch(x){}applyRole();S.mSel=null;route();return}if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&/^s\.booked_/.test(e.target.dataset.k||''))renderSettings();var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
 async function route(){
   var v=(location.hash||'#book').slice(1);if(['book','mine','staff','front','settings','profile','people'].indexOf(v)<0)v='book';
   if((v==='mine'||v==='profile')&&!S.user)v='book';if((v==='staff'||v==='front')&&!S.isStaff)v='book';if((v==='settings'||v==='people')&&!S.isAdmin)v='book';
@@ -847,6 +942,7 @@ sb.auth.onAuthStateChange(function(ev,session){
   },0);
 });
 setInterval(tickClock,1000);
+setInterval(function(){if(S.desk&&Date.now()-S.lastAct>5*60000){var tk=tok();S.desk=null;sb.rpc('lock_desk',{p_token:tk});renderAll()}},15000);
 setInterval(function(){if(S.pending&&S.view==='book'&&!S.busyBtn)renderPanel()},5000);
 setInterval(function(){if(!document.hidden&&S.ready&&S.view!=='mine'&&S.view!=='settings'&&S.view!=='profile'&&S.view!=='people'&&!S.busyBtn)refresh()},30000);
 renderAll();init();
