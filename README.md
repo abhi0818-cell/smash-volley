@@ -68,14 +68,14 @@ Settings > Club settings controls the three times below. Defaults shown.
 |---|---|
 | Player cancels **more than 1 hour** before the start (setting: "Full refund if cancelled more than") | The money is refunded to the original payment method through Razorpay. Any credit the player had used goes back to their credit. The slot reopens. |
 | Player cancels **inside that hour but more than 15 minutes** before the start | Everything paid becomes credit on their profile (rupees). The slot reopens. |
-| **Within 15 minutes** of the start (setting: "Players cannot cancel within") | Players cannot cancel online. Staff still can. |
+| **Within 15 minutes** of the start, but before it begins (setting: "Last-minute window") | The player can still cancel. **50%** of the price becomes credit (setting: "Credit for a last-minute cancel"). The slot reopens. Unpaid bookings simply cancel. Once the game has started, players cannot cancel online. |
 | Staff cancel a booking at any time | Treated like an early cancel: money refunded. |
-| **No-show**: group not checked in | Staff only, and only **20 minutes after the start** (setting: "Staff can mark a no-show after"). Nothing happens automatically. The player gets credit (percentage in "Credit given for a no-show", default 100%), and the slot reopens. |
+| **No-show**: group not checked in | Staff only, and only **10 minutes after the start** (setting: "Staff can mark a no-show after"). Nothing happens automatically. The player gets credit (percentage in "Credit given for a no-show", default 50%), and the slot reopens. |
 
 Reopened no-show slot: with automatic court assignment, the rest of that hour can be booked online (one hour only, starts at the next quarter hour, at least 20 minutes left, price prorated). Staff can also book it as a walk-in.
 
 If a refund cannot be sent right away (for example the Razorpay keys are not added yet), the booking shows "Refund on its way" and the site retries it automatically the next time the player opens My bookings.
-Database: `club_settings.late_cancel_lock_minutes`, `club_settings.no_show_wait_minutes`; function `reopened_now(sport)`.
+Database: `club_settings.late_cancel_lock_minutes`, `club_settings.last_minute_credit_percent`, `club_settings.no_show_wait_minutes`; function `reopened_now(sport)`.
 
 
 ## Roles: User, Staff, Admin
