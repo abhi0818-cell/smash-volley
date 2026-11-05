@@ -120,6 +120,11 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .tilehd .muted{display:block;font-size:13px;margin-top:2px}
 .tilehd i{font-style:normal;font-size:26px;line-height:1;color:var(--muted)}
 .tile.open .tilehd{border-bottom:1px solid var(--line)}
+.cv{margin-top:16px;background:var(--surface);border:1px solid var(--line);padding:16px}
+.cv h3{font-size:22px;text-transform:uppercase}
+.cv p{margin:2px 0 10px;font-size:13px}
+.cv svg{width:100%;height:auto;display:block;max-width:470px;margin:0 auto}
+.cv [data-act=pick]:hover rect:first-child,.cv [data-act=pick]:focus-visible rect:first-child{filter:brightness(1.12)}
 .lockcard{max-width:380px;margin:40px auto;background:var(--surface);border:1px solid var(--line);padding:26px;display:flex;flex-direction:column;gap:14px;text-align:center}
 .lockcard h2{margin:0}
 .lockcard input{font:700 30px var(--font-mono);letter-spacing:.4em;text-align:center}
@@ -150,7 +155,7 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
     <div class="toolbar" id="toolbar"></div>
     <div id="stats"></div>
     <div class="layout">
-      <div><div class="gridwrap" id="grid"></div><div class="legend" id="legend"></div></div>
+      <div><div class="gridwrap" id="grid"></div><div class="legend" id="legend"></div><div id="courtview" hidden></div></div>
       <aside class="panel" id="panel" aria-live="polite"></aside>
     </div>
   </section>
@@ -186,6 +191,7 @@ var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c)
 var pad = function(n){return String(n).padStart(2,'0')};
 function errText(e){var m=(e&&e.message)||'';if(m.indexOf('pin_required')>-1&&S.desk){S.desk=null;setTimeout(renderAll,0)}for(var k in ERR)if(m.indexOf(k)>-1)return ERR[k];return 'Something went wrong. Please try again.'}
 
+try{var tcss=localStorage.getItem('sv_theme');if(tcss){var tst=document.createElement('style');tst.id='themecss';tst.textContent=tcss;document.head.appendChild(tst)}}catch(e){}
 var STAFF_DOMAIN='staff.smashvolley.invalid';
 var S = {needsPin:false,desk:null,lastAct:Date.now(),pins:null,shared:[],sf:{},sfMsg:{},viewAs:(function(){try{return sessionStorage.getItem('sv_viewas')||null}catch(e){return null}})(),view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
   busy:{},staffRows:[],sel:null,dur:1,done:null,err:'',busyBtn:false,mSel:null,confirmCancel:false,mine:[],
@@ -226,7 +232,7 @@ function isFree(courtId,h){return !isBusy(courtId,S.date,h)&&!isPast(S.date,h)}
 async function loadStatic(){
   var r=await Promise.all([sb.from('club_settings').select('*').single(),sb.from('courts').select('*').eq('is_active',true).order('name'),sb.from('court_rates').select('*')]);
   if(r[0].error||r[1].error||r[2].error)throw (r[0].error||r[1].error||r[2].error);
-  S.settings=r[0].data;S.courts=r[1].data;S.rates={};r[2].data.forEach(function(x){S.rates[x.sport+(x.peak?'_p':'_o')]=Number(x.price)});
+  S.settings=r[0].data;applyTheme(S.settings.appearance);S.courts=r[1].data;S.rates={};r[2].data.forEach(function(x){S.rates[x.sport+(x.peak?'_p':'_o')]=Number(x.price)});
   var t=todayIn(S.settings.timezone);S.date=t;S.days=[];for(var i=0;i<=S.settings.max_days_ahead;i++)S.days.push(addDays(t,i));
 }
 async function loadAvailability(){
@@ -369,8 +375,135 @@ function courtFreeFor(c,h,n){for(var i=0;i<n;i++){if(hoursFor(c).indexOf(h+i)<0|
 function autoFree(h,n){return S.courts.some(function(c){return courtFreeFor(c,h,n||1)})}
 function inSel(c,h){return S.sel&&S.sel.c===c&&h>=S.sel.h&&h<S.sel.h+S.dur}
 function staffRec(courtId,h){var r=slotRange(S.date,h);return S.staffRows.find(function(x){return x.court_id===courtId&&new Date(x.start_time)<r[1]&&new Date(x.end_time)>r[0]})}
+
+/* ---------- appearance: site theme + court view ---------- */
+var THEMES={
+ forest:{n:'Forest green (default)'},
+ midnight:{n:'Midnight and orange',
+  L:{bg:'#eceff6',surface:'#fbfcfe','surface2':'#dfe4f0',ink:'#0f1a3a',muted:'#56617f',line:'#ccd3e4',primary:'#0f1f4a','on-primary':'#f5a15c',focus:'#1a6fd1'},
+  D:{bg:'#0a1024',surface:'#111a38','surface2':'#1a2548',ink:'#e8ecf8',muted:'#9aa6c8',line:'#27335c',primary:'#f0a35c','on-primary':'#0e1633',focus:'#6fb2ff'}},
+ ocean:{n:'Ocean blue',
+  L:{bg:'#ebf3f7',surface:'#fafdfe','surface2':'#dbe9f0',ink:'#10222b',muted:'#53696f',line:'#c9dbe3',primary:'#0b5c8a','on-primary':'#ffffff',focus:'#1a6fd1'},
+  D:{bg:'#08171e',surface:'#0f2530','surface2':'#17343f',ink:'#e4f1f6',muted:'#97b3bd',line:'#244553',primary:'#6cc4ee','on-primary':'#06222f',focus:'#6fb2ff'}},
+ rust:{n:'Rust and sand',
+  L:{bg:'#f4eeea',surface:'#fdfaf8','surface2':'#eadfd8',ink:'#2a1c16',muted:'#6f5b51',line:'#dccfc6',primary:'#9a3b24','on-primary':'#ffe9d6',focus:'#1a6fd1'},
+  D:{bg:'#1a110d',surface:'#261a14','surface2':'#33231b',ink:'#f3e8e1',muted:'#bba598',line:'#4a352a',primary:'#f0916f','on-primary':'#2a120a',focus:'#6fb2ff'}},
+ slate:{n:'Slate and gold',
+  L:{bg:'#eef0f2',surface:'#fbfbfc','surface2':'#e1e5e9',ink:'#1a2229',muted:'#5a6670',line:'#d0d6db',primary:'#2f3b46','on-primary':'#f2c14e',focus:'#1a6fd1'},
+  D:{bg:'#0e1215',surface:'#161c21','surface2':'#202830',ink:'#e8edf1',muted:'#9aa7b1',line:'#2f3a43',primary:'#f2c14e','on-primary':'#1a1405',focus:'#6fb2ff'}},
+ plum:{n:'Plum and lilac',
+  L:{bg:'#f1eef6',surface:'#fcfbfe','surface2':'#e5dff0',ink:'#201a2e',muted:'#625a78',line:'#d7cfe5',primary:'#5b3f9a','on-primary':'#f0e6ff',focus:'#1a6fd1'},
+  D:{bg:'#130f1d',surface:'#1c1630','surface2':'#281f43',ink:'#eee9f8',muted:'#a99fc4',line:'#3a2f5c',primary:'#c3a8f0','on-primary':'#1b1033',focus:'#6fb2ff'}}
+};
+var CSCHEMES={
+ 'blue-orange':{n:'Blue court, orange kitchen, midnight surround',p:'#1f5fae',k:'#e8742a',o:'#0f1f4a'},
+ 'orange-blue':{n:'Orange court, blue kitchen, midnight surround',p:'#e8742a',k:'#1f5fae',o:'#0f1f4a'},
+ 'blue-orange-out':{n:'Blue court, light blue kitchen, orange surround',p:'#1b4f96',k:'#4a8fd8',o:'#e8742a'},
+ 'green-rust':{n:'Green court, light rust kitchen, rust surround',p:'#2e7d4f',k:'#d9826a',o:'#a8432b'},
+ 'classic':{n:'Classic blue and green',p:'#2f6db3',k:'#3f8f5b',o:'#2b7a4b'},
+ 'midnight-sky':{n:'Midnight and sky',p:'#1d3f6e',k:'#5fa8d9',o:'#183056'},
+ 'teal':{n:'Teal and charcoal',p:'#1f8a8a',k:'#2e3b45',o:'#25303a'},
+ 'terracotta':{n:'Terracotta and sand',p:'#b5573a',k:'#e0b48a',o:'#8f4630'},
+ 'forest':{n:'Forest and mint',p:'#2c6b4f',k:'#8fd0a6',o:'#1f4d38'},
+ 'purple':{n:'Purple and lilac',p:'#5b3f9a',k:'#b79ae0',o:'#3f2b72'}
+};
+function isHex(v){return /^#[0-9a-f]{6}$/i.test(String(v||''))}
+function lum(hex){var n=parseInt(hex.slice(1),16);return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255}
+function mixc(hex,to,t){var n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,m=to==='light'?255:0;function f(v){return Math.round(v+(m-v)*t)}return 'rgb('+f(r)+','+f(g)+','+f(b)+')'}
+function hexOf(hex,to,t){var m=mixc(hex,to,t).match(/\d+/g).map(Number);return '#'+m.map(function(v){return ('0'+v.toString(16)).slice(-2)}).join('')}
+function themeCss(ap){
+  ap=ap||{};var L,D;
+  if(ap.theme==='custom'&&isHex(ap.primary)){var pr=ap.primary;L={primary:pr,'on-primary':lum(pr)>0.55?'#14201c':'#ffffff'};var dp=hexOf(pr,'light',.45);D={primary:dp,'on-primary':lum(dp)>0.55?'#10201b':'#ffffff'}}
+  else if(THEMES[ap.theme]&&THEMES[ap.theme].L){L=THEMES[ap.theme].L;D=THEMES[ap.theme].D}
+  else return '';
+  var f=function(o){return Object.keys(o).map(function(k){return '--'+k+':'+o[k]+';'}).join('')};
+  return ':root{'+f(L)+'}@media (prefers-color-scheme: dark){:root{'+f(D)+'}}';
+}
+function applyTheme(ap){
+  var css=themeCss(ap),el=document.getElementById('themecss');
+  if(!el){el=document.createElement('style');el.id='themecss';document.head.appendChild(el)}
+  if(el.textContent!==css)el.textContent=css;
+  try{if(css)localStorage.setItem('sv_theme',css);else localStorage.removeItem('sv_theme')}catch(e){}
+}
+function courtColors(ap){
+  ap=ap||{};
+  if(ap.court==='custom'&&isHex(ap.cp)&&isHex(ap.ck)&&isHex(ap.co))return {p:ap.cp,k:ap.ck,o:ap.co};
+  return CSCHEMES[ap.court]||CSCHEMES['blue-orange'];
+}
+function cvLines(sport,x){
+  var y=100,W=100,h=220,cx=x+W/2,c=sport==='badminton'?mixc(CVC.p,'light',.55):'#fff',w=sport==='badminton'?1.2:2,o='<rect x="'+x+'" y="'+y+'" width="'+W+'" height="'+h+'" fill="none" stroke="'+c+'" stroke-width="'+w+'"/><g stroke="'+c+'" stroke-width="'+w+'" fill="none">';
+  if(sport==='badminton'){var a=x+7.5,b=x+W-7.5;
+    o+='<line x1="'+a+'" y1="'+y+'" x2="'+a+'" y2="'+(y+h)+'"/><line x1="'+b+'" y1="'+y+'" x2="'+b+'" y2="'+(y+h)+'"/><line x1="'+x+'" y1="177.5" x2="'+(x+W)+'" y2="177.5"/><line x1="'+x+'" y1="242.5" x2="'+(x+W)+'" y2="242.5"/><line x1="'+x+'" y1="112.5" x2="'+(x+W)+'" y2="112.5"/><line x1="'+x+'" y1="307.5" x2="'+(x+W)+'" y2="307.5"/><line x1="'+cx+'" y1="'+y+'" x2="'+cx+'" y2="177.5"/><line x1="'+cx+'" y1="242.5" x2="'+cx+'" y2="'+(y+h)+'"/>'}
+  else o+='<line x1="'+x+'" y1="175" x2="'+(x+W)+'" y2="175"/><line x1="'+x+'" y1="245" x2="'+(x+W)+'" y2="245"/><line x1="'+cx+'" y1="'+y+'" x2="'+cx+'" y2="175"/><line x1="'+cx+'" y1="245" x2="'+cx+'" y2="'+(y+h)+'"/>';
+  return o+'</g>';
+}
+var CVC=CSCHEMES['blue-orange'];
+/* items: [{name,sport,status:'free'|'booked'|'held'|'closed'|'passed'|'blocked',note,sel,pick:{c,h}|null}] */
+function courtSvg(items,C,wordmark){
+  CVC=C;var n=items.length,W=100,G=60,PAD=50,tw=PAD*2+n*W+(n-1)*G,walk=hexOf(C.o,'light',.08),out='';
+  out+='<rect x="'+PAD+'" y="50" width="'+(tw-2*PAD)+'" height="330" fill="'+C.o+'"/>';
+  for(var i=0;i<n-1;i++)out+='<rect x="'+(PAD+(i+1)*W+i*G)+'" y="50" width="'+G+'" height="330" fill="'+walk+'"/>';
+  items.forEach(function(it,i){
+    var x=PAD+i*(W+G),cx=x+W/2,dim=it.status!=='free',lab=it.status==='booked'?'Booked':it.status==='held'?'Held':it.status==='closed'?'Closed':it.status==='passed'?'Passed':it.status==='blocked'?'Unavailable':'';
+    out+='<g'+(it.pick?' data-act="pick" data-c="'+esc(it.pick.c)+'" data-h="'+it.pick.h+'" role="button" tabindex="0" style="cursor:pointer" aria-label="'+esc(it.name+', free, choose this court')+'"':' role="img" aria-label="'+esc(it.name+', '+(lab||'free')+(it.note?', '+it.note:''))+'"')+'>';
+    out+='<rect x="'+x+'" y="100" width="'+W+'" height="220" fill="'+C.p+'"/><rect x="'+x+'" y="175" width="'+W+'" height="70" fill="'+C.k+'"/>'+cvLines(it.sport,x);
+    if(wordmark){var tx=function(e){return '<text x="'+cx+'" y="233" text-anchor="middle" fill="'+(lum(C.k)>0.6?'#0f1f4a':'#fff')+'" fill-opacity=".95" style="font:700 10.5px system-ui,sans-serif;letter-spacing:.4px"'+e+'>Smash &amp; Volley</text>'};out+=tx('')+tx(' transform="rotate(180 '+cx+' 210)"')}
+    out+='<line x1="'+(x-8)+'" y1="210" x2="'+(x+W+8)+'" y2="210" stroke="#f2f2f2" stroke-width="3" stroke-dasharray="3 2"/><circle cx="'+(x-8)+'" cy="210" r="3.5" fill="#222"/><circle cx="'+(x+W+8)+'" cy="210" r="3.5" fill="#222"/>';
+    if(dim)out+='<rect x="'+x+'" y="100" width="'+W+'" height="220" fill="'+C.o+'" fill-opacity=".62"/><rect x="'+(cx-34)+'" y="128" width="68" height="28" rx="14" fill="'+C.o+'" stroke="#fff" stroke-width="1.5"/><text x="'+cx+'" y="146.5" text-anchor="middle" fill="#fff" style="font:700 12px system-ui,sans-serif">'+lab+'</text>';
+    if(it.sel)out+='<rect x="'+(x-4)+'" y="96" width="'+(W+8)+'" height="228" fill="none" stroke="#f5c542" stroke-width="3.5"/>';
+    out+='<text x="'+cx+'" y="350" text-anchor="middle" fill="#fff" style="font:600 13px system-ui,sans-serif">'+esc(it.name)+'</text><text x="'+cx+'" y="366" text-anchor="middle" fill="'+(dim?'#f0b4b4':'#9be0b8')+'" style="font:12px system-ui,sans-serif">'+esc(it.note||(dim?lab:'Free'))+'</text></g>';
+  });
+  out+='<rect x="'+PAD+'" y="50" width="'+(tw-2*PAD)+'" height="330" fill="none" stroke="#3a4a7a" stroke-width="3" stroke-dasharray="1 4" stroke-linecap="round" opacity=".7"/>';
+  return '<svg viewBox="'+(PAD-10)+' 40 '+(tw-2*(PAD-10))+' 345" role="group" aria-label="Plan view of the courts">'+out+'</svg>';
+}
+function viewHour(){
+  if(S.sel&&S.sel.h!=null)return S.sel.h;
+  var H=allHours();if(!H.length)return null;
+  var tz=S.settings.timezone;if(S.date===todayIn(tz)){var nh=+tzParts(new Date(),tz).hour;return H.indexOf(nh)>-1?nh:(nh<H[0]?H[0]:H[H.length-1])}
+  return H[0];
+}
+function renderCourtView(){
+  var el=$('courtview');if(!el)return;
+  if(!S.ready||S.view!=='book'||!S.settings||S.settings.show_court_view===false||!S.courts.length){el.innerHTML='';el.hidden=true;return}
+  var h=viewHour();if(h==null){el.innerHTML='';el.hidden=true;return}
+  var ap=S.settings.appearance||{},C=courtColors(ap),player=!isAuto();
+  var items=S.courts.map(function(c){
+    var it={name:c.name,sport:S.sport,status:'free',note:'',sel:false,pick:null};
+    if(hoursFor(c).indexOf(h)<0){it.status='closed';return it}
+    var rec=busyRec(c.id,S.date,h);
+    if(rec){it.status=rec.held?'held':(rec.sport?'booked':'blocked');if(rec.sport)it.sport=rec.sport;it.note=rec.sport?SPORTS[rec.sport]:(rec.held?'Held':'Unavailable');return it}
+    if(isPast(S.date,h)&&!(S.reopen===h)){it.status='passed';it.note='Passed';return it}
+    it.note='Free';
+    if(player){it.pick={c:c.id,h:h};it.sel=!!(S.sel&&S.sel.c===c.id)}
+    return it});
+  el.hidden=false;
+  el.innerHTML='<div class="cv"><h3>Court view</h3><p class="muted">'+esc(dlabel(S.date))+', '+esc(hl(h))+'. '+(player?'Tap a free court to choose it. ':'Courts are assigned automatically when you book. ')+'Free courts show '+esc(SPORTS[S.sport].toLowerCase())+' lines. A booked court keeps the lines of the game it is booked for.</p>'+courtSvg(items,C,ap.wordmark!==false)+'</div>';
+}
+function lookBody(s,b){
+  var a=s.appearance||{},th=a.theme||'forest',cs=a.court||'blue-orange',C=courtColors(a);
+  var opt=function(map,sel){return Object.keys(map).map(function(k){return '<option value="'+k+'"'+(sel===k?' selected':'')+'>'+esc(map[k].n)+'</option>'}).join('')};
+  var themeOpts=opt(THEMES,th)+'<option value="custom"'+(th==='custom'?' selected':'')+'>Custom colour</option>';
+  var courtOpts=opt(CSCHEMES,cs)+'<option value="custom"'+(cs==='custom'?' selected':'')+'>Custom colours</option>';
+  var cp=function(key,lab,def){return '<label style="margin:0">'+lab+'<input type="color" data-k="a.'+key+'" value="'+(isHex(a[key])?a[key]:def)+'" style="width:64px;height:38px;padding:2px"></label>'};
+  return '<div class="tbody"><label class="check"><input type="checkbox" data-k="s.show_court_view"'+(s.show_court_view!==false?' checked':'')+'>Show the court view under the schedule on Book a court</label>'+
+   '<label>Website colour theme<select data-k="a.theme">'+themeOpts+'</select><span class="muted">Changes the buttons, tabs and page colours for everyone. It follows each person\'s light or dark mode. You see it live here before you save.</span></label>'+
+   (th==='custom'?'<div class="sfrow">'+cp('primary','Main colour','#17594f')+'</div>':'')+
+   '<label>Court view colours<select data-k="a.court">'+courtOpts+'</select></label>'+
+   (cs==='custom'?'<div class="sfrow">'+cp('cp','Court','#1f5fae')+cp('ck','Kitchen','#e8742a')+cp('co','Surround','#0f1f4a')+'</div>':'')+
+   '<label class="check"><input type="checkbox" data-k="a.wordmark"'+(a.wordmark!==false?' checked':'')+'>Club name in the kitchens</label>'+
+   '<div style="max-width:420px">'+courtSvg([{name:'Court 1',sport:'pickleball',status:'free',note:'Pickleball',pick:null},{name:'Court 2',sport:'badminton',status:'free',note:'Badminton',pick:null}],C,a.wordmark!==false)+'</div>'+
+   '<button class="btn" data-act="save-look"'+b+'>Save appearance</button>'+cfgMsg('look')+'</div>';
+}
+function cleanAppearance(a){
+  a=a||{};var o={};
+  if(a.theme==='custom'&&isHex(a.primary)){o.theme='custom';o.primary=a.primary.toLowerCase()}else if(THEMES[a.theme]&&a.theme!=='forest')o.theme=a.theme;
+  if(a.court==='custom'&&isHex(a.cp)&&isHex(a.ck)&&isHex(a.co)){o.court='custom';o.cp=a.cp.toLowerCase();o.ck=a.ck.toLowerCase();o.co=a.co.toLowerCase()}else if(CSCHEMES[a.court]&&a.court!=='blue-orange')o.court=a.court;
+  if(a.wordmark===false)o.wordmark=false;
+  return o;
+}
+
 function renderGrid(){
-  if(!S.ready){$('grid').innerHTML='';$('legend').innerHTML='';return}
+  if(!S.ready){$('grid').innerHTML='';$('legend').innerHTML='';renderCourtView();return}
   var staff=S.view==='staff',H=allHours(),h='<div class="grid" style="--cols:'+H.length+'" role="grid"><div></div>'+H.map(function(x){return '<div class="g-head">'+hl(x)+'</div>'}).join('');
   if(isAuto()){
     h+='<div class="g-court" role="rowheader"><b>Any court</b><span>Assigned when you book</span></div>';
@@ -409,6 +542,7 @@ function renderGrid(){
   else if(isAuto()){lg+='<span><i class="sw sel"></i>Your pick</span><span><i class="sw s-hold"></i>Fully booked</span>'}
   else{lg+='<span><i class="sw sel"></i>Your pick</span>';var mk=S.settings.booked_marker||'both',lic=function(a,b2){return mk==='racket'?[a[0],b2[0]]:mk==='ball'?[a[1],b2[1]]:[a[2],b2[2]]};if(mk==='taken')lg+='<span><i class="sw s-hold"></i>Taken</span>';else{var ids=lic(['paddle','ball','pb-both'],['racket','shuttle','bd-both']);lg+='<span style="color:var(--sp-pb)"><svg class="lg-ic"><use href="#ic-'+ids[0]+'"/></svg>Pickleball</span><span style="color:var(--sp-bd)"><svg class="lg-ic"><use href="#ic-'+ids[1]+'"/></svg>Badminton</span>'}if(S.settings.payment_required)lg+='<span><i class="sw" style="border-style:dashed"></i>Held while paying</span>'}
   $('legend').innerHTML=lg;
+  renderCourtView();
 }
 function renderStats(){
   if(S.view!=='staff'||!S.ready){$('stats').innerHTML='';return}
@@ -762,7 +896,7 @@ var TZS=['America/New_York','America/Chicago','America/Denver','America/Phoenix'
 async function loadCfg(){
   var r=await Promise.all([sb.from('club_settings').select('*').single(),sb.from('court_rates').select('*'),sb.from('courts').select('*').order('name')]);
   var rates={};(r[1].data||[]).forEach(function(x){rates[x.sport+(x.peak?'_p':'_o')]=Number(x.price)});
-  S.cfg={s:Object.assign({},r[0].data),r:rates,c:(r[2].data||[]).map(function(c){return {id:c.id,name:c.name,description:c.description||'',open:parseInt(c.open_time,10),close:parseInt(c.close_time,10),active:c.is_active}})};
+  var s0=Object.assign({},r[0].data);s0.appearance=Object.assign({},s0.appearance);S.cfg={s:s0,r:rates,c:(r[2].data||[]).map(function(c){return {id:c.id,name:c.name,description:c.description||'',open:parseInt(c.open_time,10),close:parseInt(c.close_time,10),active:c.is_active}})};
   S.cfgMsg={};
 }
 function hourOpts(sel,from,to){var o='';for(var h=from;h<=to;h++)o+='<option value="'+h+'"'+(+sel===h?' selected':'')+'>'+fmt(h)+'</option>';return o}
@@ -782,6 +916,7 @@ function renderSettings(){
   var clubSum=esc(s.currency)+' · '+esc(s.timezone)+' · '+((s.assign_mode||'auto')==='auto'?'courts assigned automatically':'players pick the court')+' · payments '+(s.payment_required?'on':'off');
   var markSum=esc(mk[s.booked_marker||'both']||'')+((s.booked_marker||'both')!=='taken'&&s.booked_show_text!==false?' with sport name':'');
   var ratesSum='Pickleball '+rv('pickleball_o')+' / '+rv('pickleball_p')+' · Badminton '+rv('badminton_o')+' / '+rv('badminton_p')+' (off-peak / peak)';
+  var ap0=s.appearance||{},lookSum='Court view '+(s.show_court_view!==false?'on':'off')+' · '+esc((THEMES[ap0.theme]||{n:ap0.theme==='custom'?'Custom colour':'Forest green (default)'}).n)+' theme · '+esc(ap0.court==='custom'?'custom court colours':(CSCHEMES[ap0.court]||CSCHEMES['blue-orange']).n);
   var nAct=S.cfg.c.filter(function(c){return c.active}).length,courtsSum=S.cfg.c.length+' court'+(S.cfg.c.length===1?'':'s')+' · '+nAct+' active';
   var rate=function(sp,pk,lab){return '<label>'+lab+' ('+curSym()+' per hour)<input type="number" min="0" step="0.5" inputmode="decimal" data-k="r.'+sp+'_'+pk+'" value="'+esc(r[sp+'_'+pk]!=null?r[sp+'_'+pk]:'')+'"></label>'};
   el.innerHTML='<h2 style="margin-top:20px">Settings</h2><p class="muted" style="margin-top:6px">Changes apply to new bookings straight away. Existing bookings are not changed.</p><div class="setgrid">'+
@@ -810,12 +945,13 @@ function renderSettings(){
   tile('rates','Rates',ratesSum,'<div class="tbody"><p class="muted">Peak is weekends, and weekdays from the peak start time above.</p>'+
    rate('pickleball','o','Pickleball off-peak')+rate('pickleball','p','Pickleball peak')+rate('badminton','o','Badminton off-peak')+rate('badminton','p','Badminton peak')+
    cfgMsg('rates')+'<button class="btn" data-act="save-rates"'+b+'>Save rates</button></div>')+
+  tile('look','Appearance',lookSum,lookBody(s,b))+
   tile('courts','Courts',courtsSum,'<div class="tbody">'+S.cfg.c.map(function(c){return '<div class="setbox" style="background:var(--bg)"><label>Name<input data-k="c.'+c.id+'.name" value="'+esc(c.name)+'"></label><label>Description<input data-k="c.'+c.id+'.description" value="'+esc(c.description)+'"></label><div class="two"><label>Opens<select data-k="c.'+c.id+'.open">'+hourOpts(c.open,0,22)+'</select></label><label>Closes<select data-k="c.'+c.id+'.close">'+hourOpts(c.close,1,23)+'</select></label></div><label class="check"><input type="checkbox" data-k="c.'+c.id+'.active"'+(c.active?' checked':'')+'>Open for booking</label></div>'}).join('')+
    cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>')+'</div>';
 }
 function setCfg(el){
   var k=el.dataset&&el.dataset.k;if(!k||!S.cfg)return;var p=k.split('.'),v=el.type==='checkbox'?el.checked:el.value;
-  if(p[0]==='s')S.cfg.s[p[1]]=v;else if(p[0]==='r')S.cfg.r[p[1]]=v;
+  if(p[0]==='s')S.cfg.s[p[1]]=v;else if(p[0]==='a'){S.cfg.s.appearance=S.cfg.s.appearance||{};S.cfg.s.appearance[p[1]]=v}else if(p[0]==='r')S.cfg.r[p[1]]=v;
   else if(p[0]==='c'){var c=S.cfg.c.find(function(x){return x.id===p[1]});if(c)c[p[2]]=(p[2]==='open'||p[2]==='close')?+v:v}
 }
 async function saveCfg(sec){
@@ -826,6 +962,9 @@ async function saveCfg(sec){
       try{new Intl.DateTimeFormat('en-US',{timeZone:tz})}catch(e){S.cfgMsg.club={t:'That time zone is not valid. Example: America/New_York.'};return renderSettings()}
       S.busyBtn=true;renderSettings();
       res=await sb.from('club_settings').update({assign_mode:s.assign_mode==='player'?'player':'auto',no_show_credit_percent:Math.min(100,Math.max(0,Math.round(+s.no_show_credit_percent||0))),payment_required:!!s.payment_required,hold_minutes:+s.hold_minutes||10,late_cancel_lock_minutes:Math.min(120,Math.max(0,Math.round(s.late_cancel_lock_minutes==null?15:+s.late_cancel_lock_minutes||0))),no_show_wait_minutes:Math.min(120,Math.max(0,Math.round(s.no_show_wait_minutes==null?10:+s.no_show_wait_minutes||0))),last_minute_credit_percent:Math.min(100,Math.max(0,Math.round(s.last_minute_credit_percent==null?50:+s.last_minute_credit_percent||0))),changeover_minutes:Math.min(20,Math.max(0,Math.round(s.changeover_minutes==null?15:+s.changeover_minutes||0))),currency:s.currency||'USD',timezone:tz,peak_start_hour:+s.peak_start_hour,max_hours:+s.max_hours,max_upcoming_per_user:+s.max_upcoming_per_user,cancel_cutoff_hours:+s.cancel_cutoff_hours,max_days_ahead:+s.max_days_ahead}).eq('id',true).select();
+    }else if(sec==='look'){
+      S.busyBtn=true;renderSettings();
+      res=await sb.from('club_settings').update({show_court_view:c.s.show_court_view!==false,appearance:cleanAppearance(c.s.appearance)}).eq('id',true).select();
     }else if(sec==='marker'){
       var mk=['taken','racket','ball','both'].indexOf(c.s.booked_marker)>-1?c.s.booked_marker:'both';
       S.busyBtn=true;renderSettings();
@@ -851,6 +990,7 @@ async function saveCfg(sec){
     S.cfgMsg[sec]={t:t};return renderSettings();
   }
   try{await loadStatic()}catch(e){}
+  if(sec==='look'){S.cfg.s.appearance=Object.assign({},S.settings.appearance);applyTheme(S.settings.appearance)}
   S.cfgMsg[sec]={ok:true,t:'Saved.'};renderSettings();renderHead();
 }
 
@@ -878,6 +1018,7 @@ document.addEventListener('click',function(e){S.lastAct=Date.now();
   else if(a==='pin-toggle')doPinToggle(t.dataset.id,t.dataset.v==='1');
   else if(a==='login-create')doLoginCreate();
   else if(a==='login-pw')doLoginPw(t.dataset.id);
+  else if(a==='save-look')saveCfg('look');
   else if(a==='tile'){S.setOpen=S.setOpen||{};S.setOpen[t.dataset.t]=!S.setOpen[t.dataset.t];if(S.view==='people')renderPeople();else renderSettings()}
   else if(a==='mine-cancel'){S.cancelAsk=t.dataset.id;S.err='';S.mineMsg='';renderMine()}
   else if(a==='mine-cancel-no'){S.cancelAsk=null;renderMine()}
@@ -909,12 +1050,13 @@ document.addEventListener('click',function(e){S.lastAct=Date.now();
 });
 document.addEventListener('submit',function(e){var fm=e.target;if(fm.dataset&&fm.dataset.form==='pin'){e.preventDefault();doUnlock();return}if(fm.dataset&&fm.dataset.form==='auth'){e.preventDefault();doAuth()}});
 document.addEventListener('keydown',function(){S.lastAct=Date.now()});
-document.addEventListener('input',function(e){if(e.target.dataset&&e.target.dataset.sf){S.sf[e.target.dataset.sf]=e.target.value;return}if(e.target.id==='fd-q'){S.frontQ=e.target.value;renderFrontList();return}if(e.target.id==='fd-note'){S.frontDraft.note=e.target.value;return}if(e.target.dataset&&e.target.dataset.f==='useCredit')return;var pp=e.target.dataset&&e.target.dataset.ppl;if(pp){var q=pp.split('.');S.pplIn=S.pplIn||{};S.pplIn[q[0]]=S.pplIn[q[0]]||{};S.pplIn[q[0]][q[1]]=e.target.value}setCfg(e.target);var f=e.target.dataset&&e.target.dataset.f;if(f)S.form[f]=e.target.value});
-document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.sim){S.simPaid=e.target.checked;renderMine();return}if(e.target.dataset&&e.target.dataset.shared){doShared(e.target.dataset.shared,e.target.checked);return}if(e.target.dataset&&e.target.dataset.sfc){S.sf[e.target.dataset.sfc]=e.target.checked;return}if(e.target.dataset&&e.target.dataset.viewas){S.viewAs=e.target.value==='admin'?null:e.target.value;try{sessionStorage.setItem('sv_viewas',S.viewAs||'')}catch(x){}applyRole();S.mSel=null;route();return}if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&/^s\.booked_/.test(e.target.dataset.k||''))renderSettings();var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
+document.addEventListener('input',function(e){if(e.target.dataset&&e.target.dataset.sf){S.sf[e.target.dataset.sf]=e.target.value;return}if(e.target.id==='fd-q'){S.frontQ=e.target.value;renderFrontList();return}if(e.target.id==='fd-note'){S.frontDraft.note=e.target.value;return}if(e.target.dataset&&e.target.dataset.f==='useCredit')return;var pp=e.target.dataset&&e.target.dataset.ppl;if(pp){var q=pp.split('.');S.pplIn=S.pplIn||{};S.pplIn[q[0]]=S.pplIn[q[0]]||{};S.pplIn[q[0]][q[1]]=e.target.value}setCfg(e.target);if(e.target.type==='color'&&S.cfg&&S.cfg.s)applyTheme(S.cfg.s.appearance);var f=e.target.dataset&&e.target.dataset.f;if(f)S.form[f]=e.target.value});
+document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.sim){S.simPaid=e.target.checked;renderMine();return}if(e.target.dataset&&e.target.dataset.shared){doShared(e.target.dataset.shared,e.target.checked);return}if(e.target.dataset&&e.target.dataset.sfc){S.sf[e.target.dataset.sfc]=e.target.checked;return}if(e.target.dataset&&e.target.dataset.viewas){S.viewAs=e.target.value==='admin'?null:e.target.value;try{sessionStorage.setItem('sv_viewas',S.viewAs||'')}catch(x){}applyRole();S.mSel=null;route();return}if(e.target.dataset&&e.target.dataset.role){doSetRole(e.target.dataset.role,e.target.value);return}if(e.target.id==='fd-idc'){S.frontDraft.idc=e.target.checked;return}setCfg(e.target);if(e.target.dataset&&(/^s\.booked_/.test(e.target.dataset.k||'')||/^(a\.|s\.show_court_view)/.test(e.target.dataset.k||''))){if(S.cfg&&S.cfg.s)applyTheme(S.cfg.s.appearance);renderSettings()}var f=e.target.dataset&&e.target.dataset.f;if(f==='useCredit'){S.useCredit=e.target.checked;renderPanel();return}if(f==='stype'){S.form.stype=e.target.value;S.err='';renderPanel()}});
 async function route(){
   var v=(location.hash||'#book').slice(1);if(['book','mine','staff','front','settings','profile','people'].indexOf(v)<0)v='book';
   if((v==='mine'||v==='profile')&&!S.user)v='book';if((v==='staff'||v==='front')&&!S.isStaff)v='book';if((v==='settings'||v==='people')&&!S.isAdmin)v='book';
   if((location.hash||'#book')!=='#'+v){try{history.replaceState(null,'','#'+v)}catch(e){}}
+  if(v!=='settings'&&S.settings)applyTheme(S.settings.appearance);
   S.view=v;S.sel=null;S.mSel=null;S.err='';S.confirmCancel=false;S.dur=1;
   if(v==='mine')await loadMine();
   if(v==='profile'){S.ledger=null;S.pmsg='';renderAll();await loadLedger()}

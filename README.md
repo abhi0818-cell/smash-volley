@@ -101,3 +101,38 @@ These rules are enforced in the database (row-level security and the functions),
 **Front desk tab:** today's bookings with search and filters. Check-in opens 30 minutes before the start. Tapping Check in asks for the number of guests, an optional "I checked photo ID" box and a note, then Mark present. A no-show can be marked once the waiting time (Settings) has passed. Unchecked-in bookings that are late are highlighted. The page refreshes itself every 30 seconds.
 
 Database: `profiles.role` ('user', 'staff', 'admin'), `is_staff()`, `is_admin()`, `admin_set_role(user, role)`.
+
+
+## Staff logins and desk PINs
+
+**Staff logins are created by an admin, not by signup.** Customers tab > **Add a staff login**: a display name, a username (for example `frontdesk`) and a password. The account is created already confirmed, with the Staff role. Staff sign in on the normal sign-in box using the username. Typing a full email address instead creates a personal login.
+
+- Staff have no way to change the password (no screen for it, and the reset-by-email link does not work for usernames). An admin sets a new one from the person's row in Customers ("Set password").
+- Edge function: `staff-accounts` (actions `create` and `reset_password`, admins only). Usernames are stored as `username@staff.smashvolley.invalid`. If Supabase ever refuses that domain, create the login with a real email address instead.
+
+**Desk PINs for a shared login.** Tick "Shared by several people" when creating the login (or tick "Shared login (PIN)" on its row later). Then:
+
+1. Customers > **Desk staff and PINs**: add each person with a 4 to 6 digit PIN. Two active people cannot share a PIN. You can rename, change a PIN or switch a person off at any time.
+2. On the shared login, Front desk and Master schedule show a lock screen. A person enters their PIN and the header shows "Desk: Name". They press **Lock**, or it locks by itself after 5 quiet minutes (the server also expires it after 10).
+3. Five wrong PINs lock the screen for 2 minutes.
+4. Every check-in, undo, no-show, phone booking and staff cancel is recorded with the name. The schedule panel shows "Booked by" and "Checked in ... by"; the Front desk list shows "Present · by Name".
+
+The PIN is for accountability, not high security: someone who learns another person's PIN can act as them. Change a PIN or switch the person off if that happens. Admins and personal (non-shared) staff accounts are never asked for a PIN.
+
+Database: tables `staff_pins`, `desk_sessions`, `pin_attempts` (not readable by the site, only through functions), `profiles.needs_pin`, functions `unlock_desk`, `lock_desk`, `admin_save_pin`, `admin_list_pins`, `admin_set_needs_pin`, `admin_shared_logins`. The action functions `check_in`, `undo_check_in`, `mark_no_show`, `admin_create_booking` and `cancel_booking` take an optional `p_token` and refuse shared logins that don't have a valid one.
+
+## Cancel confirmation and test mode
+
+Pressing **Cancel** on My bookings now opens a confirmation that says exactly what will happen: nothing to refund (unpaid, pay-at-the-club booking), a card refund, or credit (full price, or the last-minute percentage when the game starts in under the last-minute window). Pressing "Yes, cancel it" then cancels.
+
+Admins also see a **Test only: pretend this was paid online** box in that confirmation. With it ticked, the text shows what a player would get if the booking had been paid through the gateway, and the button becomes "Show the result (no changes)". Nothing is cancelled and nothing is written. Use it to check the rules while payments are still off.
+
+## Court view and appearance (Settings > Appearance)
+
+**Court view.** On Book a court, below the "Any court" timeline, a plan of the courts shows which are free at the hour you picked (or the current hour if none is picked). Free courts show the lines of the sport selected above (white pickleball lines, or thin light-blue badminton lines). A booked court keeps the lines of the game it is booked for, whatever sport is selected. When players choose their own court (Settings > Club), tapping a free court selects it. Turn the whole view on or off with "Show the court view" in Settings > Appearance.
+
+**Website colour theme.** Settings > Appearance > Website colour theme: Forest green (default), Midnight and orange, Ocean blue, Rust and sand, Slate and gold, Plum and lilac, or a custom main colour. It applies to everyone, follows each person's light or dark mode, and previews live before you press Save.
+
+**Court view colours.** Ten presets (including Blue court with orange kitchen on midnight, the default) or three custom colours (court, kitchen, surround), plus a switch for the club name in the kitchens.
+
+Database: `club_settings.show_court_view` (boolean) and `club_settings.appearance` (small JSON: theme, primary, court, cp, ck, co, wordmark).
