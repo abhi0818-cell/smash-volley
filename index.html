@@ -120,6 +120,8 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .tilehd .muted{display:block;font-size:13px;margin-top:2px}
 .tilehd i{font-style:normal;font-size:26px;line-height:1;color:var(--muted)}
 .tile.open .tilehd{border-bottom:1px solid var(--line)}
+.g-head.vh{font-weight:700;color:var(--ink);box-shadow:inset 0 -3px 0 var(--primary)}
+#grid.bk .cell{cursor:pointer}
 .cv{margin-top:16px;background:var(--surface);border:1px solid var(--line);padding:16px}
 .cv h3{font-size:22px;text-transform:uppercase}
 .cv p{margin:2px 0 10px;font-size:13px}
@@ -475,6 +477,7 @@ function courtSvg(items,C,wm){
   return '<svg viewBox="'+(S0-6)+' 44 '+(sw+12)+' 342" role="group" aria-label="Plan view of the courts">'+out+'</svg>';
 }
 function viewHour(){
+  var HH=allHours();if(S.viewH!=null&&HH.indexOf(S.viewH)>-1)return S.viewH;
   if(S.sel&&S.sel.h!=null)return S.sel.h;
   var H=allHours();if(!H.length)return null;
   var tz=S.settings.timezone;if(S.date===todayIn(tz)){var nh=+tzParts(new Date(),tz).hour;return H.indexOf(nh)>-1?nh:(nh<H[0]?H[0]:H[H.length-1])}
@@ -526,7 +529,7 @@ function cleanAppearance(a){
 
 function renderGrid(){
   if(!S.ready){$('grid').innerHTML='';$('legend').innerHTML='';renderCourtView();return}
-  var staff=S.view==='staff',H=allHours(),h='<div class="grid" style="--cols:'+H.length+'" role="grid"><div></div>'+H.map(function(x){return '<div class="g-head">'+hl(x)+'</div>'}).join('');
+  var staff=S.view==='staff',H=allHours(),vh=(S.view==='book'&&S.settings&&S.settings.show_court_view!==false)?viewHour():null,h='<div class="grid" style="--cols:'+H.length+'" role="grid"><div></div>'+H.map(function(x){return '<div class="g-head'+(x===vh?' vh':'')+'">'+hl(x)+'</div>'}).join('');
   if(isAuto()){
     h+='<div class="g-court" role="rowheader"><b>Any court</b><span>Assigned when you book</span></div>';
     H.forEach(function(hr){
@@ -558,6 +561,7 @@ function renderGrid(){
       }
     });
   });
+  $('grid').classList.toggle('bk',S.view==='book');
   $('grid').innerHTML=h+'</div>';
   var lg='<span><i class="sw free"></i>Open'+(staff?'':' (price per hour)')+'</span>'+(staff?'<span>✓ checked in</span><span style="color:#7c3aed">⇄ switch sport on this court</span><span style="color:#c2410c">Orange outline: 15+ min late, not checked in</span>':'')+'<span><i class="sw past"></i>Passed or closed</span>';
   if(staff)lg+=Object.keys(SOURCES).map(function(s){return '<span><i class="sw s-'+s+'"></i>'+CODES[s]+' '+SOURCES[s]+'</span>'}).join('')+'<span>PB = pickleball, BD = badminton</span>';
@@ -1018,8 +1022,11 @@ async function saveCfg(sec){
 
 /* ---------- events ---------- */
 document.addEventListener('click',function(e){S.lastAct=Date.now();
+  var gc=e.target.closest&&e.target.closest('#grid .cell');
+  if(gc&&S.view==='book'&&S.ready){var sib=[].slice.call(gc.parentElement.children),ix=sib.indexOf(gc),HH=allHours(),cols=HH.length+1,hr=HH[(ix%cols)-1];
+    if(hr!=null&&ix>=cols){S.viewH=hr;if(!gc.closest('[data-act]')&&!gc.dataset.act){renderGrid();return}}}
   var t=e.target.closest('[data-act]');if(!t)return;var a=t.dataset.act;
-  if(a==='date'){S.date=t.dataset.d;S.sel=null;S.dur=1;S.mSel=null;S.done=null;S.err='';S.confirmCancel=false;renderToolbar();refresh().then(renderPanel)}
+  if(a==='date'){S.date=t.dataset.d;S.viewH=null;S.sel=null;S.dur=1;S.mSel=null;S.done=null;S.err='';S.confirmCancel=false;renderToolbar();refresh().then(renderPanel)}
   else if(a==='sport'){S.sport=t.dataset.v;S.quote=null;if(S.sel&&S.sel.c==='auto'&&isPast(S.date,S.sel.h))S.sel=null;renderToolbar();renderGrid();renderPanel();loadReopen().then(function(){renderGrid();loadQuote()})}
   else if(a==='pick'){var c=t.dataset.c,h=+t.dataset.h,court=S.courts.find(function(x){return x.id===c});S.done=null;S.err='';S.showAuth=false;S.sel={c:c,h:h};
     if(S.dur===2&&!(c==='auto'?autoFree(h,2):(hoursFor(court).indexOf(h+1)>-1&&isFree(c,h+1))))S.dur=1;S.quote=null;renderGrid();renderPanel();loadQuote()}
