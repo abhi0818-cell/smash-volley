@@ -13,7 +13,7 @@
   --font-display:'Barlow Condensed','Arial Narrow',sans-serif; --font-body:'Barlow',system-ui,sans-serif; --font-mono:'IBM Plex Mono',ui-monospace,monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root{
+@media (prefers-color-scheme: dark){:root[data-mode=auto]{
   --bg:#0c1714; --surface:#13221e; --surface2:#1b2e29; --ink:#e5efeb; --muted:#9bb0a8; --line:#2a403a;
   --primary:#dcec55; --on-primary:#10201b; --focus:#6fb2ff; --bad:#ff8c7d; --ok:#5fd39b;
   --src-web:#5aa8ee; --src-desk:#b79af0; --src-playtomic:#f09a62; --src-courtreserve:#ee86b8; --src-program:#cfc94a; --src-hold:#a2aea9; color-scheme:dark}}
@@ -31,11 +31,14 @@ button{cursor:pointer}
 .top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding:20px 0 14px;border-bottom:2px solid var(--ink)}
 .brand{font-family:var(--font-display);font-weight:700;font-size:34px;line-height:1;text-transform:uppercase;letter-spacing:.03em}
 .brand small{display:block;font:500 12px var(--font-body);letter-spacing:.14em;color:var(--muted);margin-top:4px}
-.right{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.right{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;max-width:100%;min-width:0}
+.right nav{min-width:0;max-width:100%}
+@media (max-width:600px){nav{flex-wrap:wrap;overflow:visible}.top{padding:14px 0 10px}nav a{font-size:15px;padding:2px 8px;line-height:1.3}.right{width:100%}}
 nav{display:flex;gap:4px;overflow-x:auto;max-width:100%}
 nav a{font-family:var(--font-display);font-weight:600;font-size:19px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-decoration:none;padding:6px 14px;border-bottom:3px solid transparent;white-space:nowrap}
 nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--primary)}
-.who{font-size:13px;color:var(--muted)}
+.who{font-size:13px;color:var(--muted);max-width:100%;overflow-wrap:anywhere}
+.viewas{max-width:100%}
 .clock{font-family:var(--font-mono);font-size:13px;color:var(--ink);text-align:left;line-height:1.35}
 .clock b{font-size:20px;font-weight:700;letter-spacing:.02em;display:block}
 .clock span{color:var(--muted);font-size:12px}
@@ -71,7 +74,7 @@ button.cell.free:hover{border-color:var(--primary);color:var(--ink)}
 .cell.booked b{font:700 11px var(--font-body);letter-spacing:.06em}
 .cell.booked i{font-style:normal;font-size:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cell.booked.picked{outline:2px solid var(--ink);outline-offset:-2px}
-:root{--sp-pb:#b8610f;--sp-bd:#1f7a53}@media (prefers-color-scheme: dark){:root{--sp-pb:#f0a35c;--sp-bd:#5cc79a}}.sp-pickleball{--s:var(--sp-pb)}.sp-badminton{--s:var(--sp-bd)}.cell.booked.held{border-style:dashed;box-shadow:none}.cell svg.ic{width:26px;height:26px;flex:none}.cell .sn{font-style:normal;font-size:10px;line-height:1.1}.lg-ic{width:18px;height:18px;vertical-align:-4px;margin-right:4px}@media (max-width:640px){.cell .sn.nm{display:none}}
+:root{--sp-pb:#b8610f;--sp-bd:#1f7a53}@media (prefers-color-scheme: dark){:root[data-mode=auto]{--sp-pb:#f0a35c;--sp-bd:#5cc79a}}.sp-pickleball{--s:var(--sp-pb)}.sp-badminton{--s:var(--sp-bd)}.cell.booked.held{border-style:dashed;box-shadow:none}.cell svg.ic{width:26px;height:26px;flex:none}.cell .sn{font-style:normal;font-size:10px;line-height:1.1}.lg-ic{width:18px;height:18px;vertical-align:-4px;margin-right:4px}@media (max-width:640px){.cell .sn.nm{display:none}}
 .cell.chg::before{content:'⇄';position:absolute;top:2px;left:4px;font-weight:700;color:#7c3aed}.cell.in::after{content:'✓';position:absolute;top:2px;right:4px;font-weight:700}.cell.late{outline:2px solid #c2410c;outline-offset:-2px}.s-web{--s:var(--src-web)}.s-desk{--s:var(--src-desk)}.s-playtomic{--s:var(--src-playtomic)}.s-courtreserve{--s:var(--src-courtreserve)}.s-program{--s:var(--src-program)}.s-hold{--s:var(--src-hold)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -198,6 +201,7 @@ var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c)
 var pad = function(n){return String(n).padStart(2,'0')};
 function errText(e){var m=(e&&e.message)||'';if(m.indexOf('pin_required')>-1&&S.desk){S.desk=null;setTimeout(renderAll,0)}for(var k in ERR)if(m.indexOf(k)>-1)return ERR[k];return 'Something went wrong. Please try again.'}
 
+try{document.documentElement.setAttribute('data-mode',localStorage.getItem('sv_mode')==='auto'?'auto':'light')}catch(e){document.documentElement.setAttribute('data-mode','light')}
 try{var tcss=localStorage.getItem('sv_theme');if(tcss){var tst=document.createElement('style');tst.id='themecss';tst.textContent=tcss;document.head.appendChild(tst)}}catch(e){}
 var STAFF_DOMAIN='staff.smashvolley.invalid';
 var S = {needsPin:false,desk:null,lastAct:Date.now(),pins:null,shared:[],sf:{},sfMsg:{},viewAs:(function(){try{return sessionStorage.getItem('sv_viewas')||null}catch(e){return null}})(),view:'book',user:null,isAdmin:false,isStaff:false,role:'user',settings:null,courts:[],rates:{},date:null,days:[],sport:'pickleball',
@@ -428,9 +432,10 @@ function themeCss(ap){
   else if(THEMES[ap.theme]&&THEMES[ap.theme].L){L=THEMES[ap.theme].L;D=THEMES[ap.theme].D}
   else return '';
   var f=function(o){return Object.keys(o).map(function(k){return '--'+k+':'+o[k]+';'}).join('')};
-  return ':root{'+f(L)+'}@media (prefers-color-scheme: dark){:root{'+f(D)+'}}';
+  return ':root{'+f(L)+'}@media (prefers-color-scheme: dark){:root[data-mode=auto]{'+f(D)+'}}';
 }
 function applyTheme(ap){
+  var md=ap&&ap.mode==='auto'?'auto':'light';document.documentElement.setAttribute('data-mode',md);try{localStorage.setItem('sv_mode',md)}catch(e){}
   var css=themeCss(ap),el=document.getElementById('themecss');
   if(!el){el=document.createElement('style');el.id='themecss';document.head.appendChild(el)}
   if(el.textContent!==css)el.textContent=css;
@@ -516,7 +521,8 @@ function lookBody(s,b){
   var courtOpts=opt(CSCHEMES,cs)+'<option value="custom"'+(cs==='custom'?' selected':'')+'>Custom colours</option>';
   var cp=function(key,lab,def){return '<label style="margin:0">'+lab+'<input type="color" data-k="a.'+key+'" value="'+(isHex(a[key])?a[key]:def)+'" style="width:64px;height:38px;padding:2px"></label>'};
   return '<div class="tbody"><label class="check"><input type="checkbox" data-k="s.show_court_view"'+(s.show_court_view!==false?' checked':'')+'>Show the court view under the schedule on Book a court</label>'+
-   '<label>Website colour theme<select data-k="a.theme">'+themeOpts+'</select><span class="muted">Changes the buttons, tabs and page colours for everyone. It follows each person\'s light or dark mode. You see it live here before you save.</span></label>'+
+   '<label>Light or dark<select data-k="a.mode"><option value="light"'+(a.mode!=='auto'?' selected':'')+'>Always light (same on every device)</option><option value="auto"'+(a.mode==='auto'?' selected':'')+'>Match each phone or computer (dark mode)</option></select></label>'+
+   '<label>Website colour theme<select data-k="a.theme">'+themeOpts+'</select><span class="muted">Changes the buttons, tabs and page colours for everyone. You see it live here before you save.</span></label>'+
    (th==='custom'?'<div class="sfrow">'+cp('primary','Main colour','#17594f')+'</div>':'')+
    '<label>Court view colours<select data-k="a.court">'+courtOpts+'</select></label>'+
    (cs==='custom'?'<div class="sfrow">'+cp('cp','Court','#1f5fae')+cp('ck','Kitchen','#e8742a')+cp('co','Surround','#0f1f4a')+'</div>':'')+
@@ -526,7 +532,7 @@ function lookBody(s,b){
    '<button class="btn" data-act="save-look"'+b+'>Save appearance</button>'+cfgMsg('look')+'</div>';
 }
 function cleanAppearance(a){
-  a=a||{};var o={};
+  a=a||{};var o={};if(a.mode==='auto')o.mode='auto';
   if(a.theme==='custom'&&isHex(a.primary)){o.theme='custom';o.primary=a.primary.toLowerCase()}else if(THEMES[a.theme]&&a.theme!=='forest')o.theme=a.theme;
   if(a.court==='custom'&&isHex(a.cp)&&isHex(a.ck)&&isHex(a.co)){o.court='custom';o.cp=a.cp.toLowerCase();o.ck=a.ck.toLowerCase();o.co=a.co.toLowerCase()}else if(CSCHEMES[a.court]&&a.court!=='blue-orange')o.court=a.court;
   if(a.wordmark===false)o.wordmark=false;
