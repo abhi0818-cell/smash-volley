@@ -33,7 +33,8 @@ button{cursor:pointer}
 .brand small{display:block;font:500 12px var(--font-body);letter-spacing:.14em;color:var(--muted);margin-top:4px}
 .right{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;max-width:100%;min-width:0}
 .right nav{min-width:0;max-width:100%}
-@media (max-width:600px){nav{flex-wrap:wrap;overflow:visible}.top{padding:14px 0 10px}nav a{font-size:15px;padding:2px 8px;line-height:1.3}.right{width:100%}}
+.navbtn{display:none;font:600 16px var(--font-display);text-transform:uppercase;letter-spacing:.05em;background:var(--surface);color:var(--ink);border:1px solid var(--line);padding:8px 14px;cursor:pointer}
+@media (max-width:600px){nav{flex-wrap:wrap;overflow:visible}.many #nav{display:none;width:100%;flex-direction:column}.many.open #nav{display:flex}.many .navbtn{display:inline-block}.top{padding:14px 0 10px}nav a{font-size:15px;padding:2px 8px;line-height:1.3}.right{width:100%}}
 nav{display:flex;gap:4px;overflow-x:auto;max-width:100%}
 nav a{font-family:var(--font-display);font-weight:600;font-size:19px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-decoration:none;padding:6px 14px;border-bottom:3px solid transparent;white-space:nowrap}
 nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--primary)}
@@ -158,7 +159,7 @@ dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
 <div class="wrap">
   <header class="top">
     <div class="brand">Smash &amp; Volley<small id="tagline">COURT BOOKING</small></div>
-    <div class="right"><div class="clock" id="clock" role="timer" aria-label="Club time"></div><nav id="nav" aria-label="Sections"></nav><div class="who" id="who"></div></div>
+    <div class="right"><div class="clock" id="clock" role="timer" aria-label="Club time"></div><button type="button" class="navbtn" id="navbtn" aria-expanded="false" aria-controls="nav"></button><nav id="nav" aria-label="Sections"></nav><div class="who" id="who"></div></div>
   </header>
   <div id="notice"></div>
   <section id="v-grid">
@@ -365,6 +366,7 @@ function tickClock(){
 }
 function renderHead(){tickClock();
   var items=[['book','Book a court']];if(S.user)items.push(['mine','My bookings'],['profile','Profile']);if(S.isStaff)items.push(['front','Front desk'],['staff','Master schedule']);if(S.isAdmin)items.push(['people','Customers'],['settings','Settings']);
+  var cur=items.filter(function(i){return S.view===i[0]})[0];$('navbtn').textContent='☰  '+(cur?cur[1]:'Menu');$('navbtn').parentNode.classList.toggle('many',items.length>3);
   $('nav').innerHTML=items.map(function(i){return '<a href="#'+i[0]+'"'+(S.view===i[0]?' aria-current="page"':'')+'>'+i[1]+'</a>'}).join('');
   var dk=S.desk?'Desk: <b>'+esc(S.desk.name)+'</b> · <button class="linkbtn" data-act="desk-lock">Lock</button> · ':'';
   var vs=S.realRole==='admin'?'<label class="viewas">Preview as <select data-viewas="1" aria-label="Preview the site as another role">'+[['admin','Admin (me)'],['staff','Staff'],['user','Regular user']].map(function(o){return '<option value="'+o[0]+'"'+(S.role===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label> · ':'';
@@ -1045,6 +1047,7 @@ async function saveCfg(sec){
 
 /* ---------- events ---------- */
 document.addEventListener('click',function(e){S.lastAct=Date.now();
+  var nb=e.target.closest&&e.target.closest('#navbtn,#nav a');if(nb){var rt=document.querySelector('.right');var op=nb.id==='navbtn'?!rt.classList.contains('open'):false;rt.classList.toggle('open',op);document.getElementById('navbtn').setAttribute('aria-expanded',op)}
   var gc=e.target.closest&&e.target.closest('#grid .cell');
   if(gc&&S.view==='book'&&S.ready){var sib=[].slice.call(gc.parentElement.children),ix=sib.indexOf(gc),HH=allHours(),cols=HH.length+1,hr=HH[(ix%cols)-1];
     if(hr!=null&&ix>=cols){S.viewH=hr;if(!gc.closest('[data-act]')&&!gc.dataset.act){renderGrid();return}}}
