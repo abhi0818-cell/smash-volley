@@ -105,14 +105,14 @@ Database: `profiles.role` ('user', 'staff', 'admin'), `is_staff()`, `is_admin()`
 
 ## Staff logins and desk PINs
 
-**Staff logins are created by an admin, not by signup.** Customers tab > **Add a staff login**: a display name, a username (for example `frontdesk`) and a password. The account is created already confirmed, with the Staff role. Staff sign in on the normal sign-in box using the username. Typing a full email address instead creates a personal login.
+**Staff logins are created by an admin, not by signup.** Settings tab > **Add a staff login**: a display name, a username (for example `frontdesk`) and a password. The account is created already confirmed, with the Staff role. Staff sign in on the normal sign-in box using the username. Typing a full email address instead creates a personal login.
 
 - Staff have no way to change the password (no screen for it, and the reset-by-email link does not work for usernames). An admin sets a new one from the person's row in Customers ("Set password").
 - Edge function: `staff-accounts` (actions `create` and `reset_password`, admins only). Usernames are stored as `username@staff.smashvolley.invalid`. If Supabase ever refuses that domain, create the login with a real email address instead.
 
 **Desk PINs for a shared login.** Tick "Shared by several people" when creating the login (or tick "Shared login (PIN)" on its row later). Then:
 
-1. Customers > **Desk staff and PINs**: add each person with a 4 to 6 digit PIN. Two active people cannot share a PIN. You can rename, change a PIN or switch a person off at any time.
+1. Settings > **Desk staff and PINs**: add each person with a 4 to 6 digit PIN. Two active people cannot share a PIN. You can rename, change a PIN or switch a person off at any time.
 2. On the shared login, Front desk and Master schedule show a lock screen. A person enters their PIN and the header shows "Desk: Name". They press **Lock**, or it locks by itself after 5 quiet minutes (the server also expires it after 10).
 3. Five wrong PINs lock the screen for 2 minutes.
 4. Every check-in, undo, no-show, phone booking and staff cancel is recorded with the name. The schedule panel shows "Booked by" and "Checked in ... by"; the Front desk list shows "Present · by Name".
@@ -136,3 +136,100 @@ Admins also see a **Test only: pretend this was paid online** box in that confir
 **Court view colours.** Ten presets (including Blue court with orange kitchen on midnight, the default) or three custom colours (court, kitchen, surround), plus a switch for the club name in the kitchens, with its own font (8 choices), size (7 to 18 px) and letter colour. Very large text is squeezed to fit inside the court.
 
 Database: `club_settings.show_court_view` (boolean) and `club_settings.appearance` (small JSON: theme, primary, court, cp, ck, co, wordmark).
+
+## Settings tiles and Master schedule markers
+
+All Settings tiles are the same size when closed (an open tile spans the full width). Desk staff and PINs and Add a staff login now live in Settings, since they are club configuration; the Customers tab keeps roles and credit. In the Master schedule, booked squares now keep the sport icon from Settings > Booked slots alongside the source code (for example WEB and BD).
+
+## Future plans notepad
+
+Settings > **Future plans** is a private notepad for ideas. Click the tile, type, and press **Save notes**. It is stored in the `admin_notes` table and only admins can read or write it. **Promotions** is an empty placeholder tile for now.
+
+## Phone layout
+
+The header menu used to be wider than a phone screen (staff and admin have many tabs), which made phones zoom the whole page out. The menu now wraps onto several lines on small screens and the page fits the phone width.
+
+## Light and dark mode
+
+The site is always light by default, so phones in dark mode look the same as the computer. Settings > Appearance > **Light or dark** can switch the whole club site to follow each person's device (dark on dark-mode phones).
+
+## Phone menu
+
+On phones, staff and admins see a single Menu button showing the current page. Tapping it opens the list of pages; picking one closes it. Players (three tabs) and larger screens keep the normal tab row.
+
+## Credit: promo and paid (new)
+Every player has two kinds of credit.
+- **Credit (paid)**: from cancellations, no-show returns, or an admin adjustment. Never expires.
+- **Promo credit**: given by an admin under Customers (amount, expiry date, reason). Each grant is its own line with its own expiry. It becomes zero at the end of the expiry day (club time) and is lost if not used.
+
+**Order of use at booking:** promo (soonest expiry first), then paid credit, then the payment method. Credit is applied even while online payments are off; whatever is left shows as "pay X at the club" (front desk and schedule show "Collect X at the club").
+
+**Cancel / no-show:** money you paid comes back as a card refund or credit; credit you used goes back to the bucket it came from. Promo credit returns with its original expiry; if it has already expired it is lost. For late and no-show returns (percentage rules), real money is counted first and promo last. Promo credit is never refunded to a card or transferred.
+
+Database: `credit_lots`, `credit_uses`, `bookings.promo_applied`, functions `my_credit_split`, `admin_grant_promo`. Upload the new `index.html` to GitHub to use it.
+
+## Equipment rental (new)
+Players can add a rental pack when they book (off by default).
+- **Large pack:** 4 paddles + 2 balls (pickleball) or 4 racquets + 2 shuttles (badminton). **Small pack:** 2 paddles + 1 ball or 2 racquets + 1 shuttle.
+- **Settings → Equipment rental:** switch it on and set the two prices (per booking, not per hour).
+- **Kept separate from the court price.** Credit, promo credit, online payment, refunds and the cancel/no-show percentages apply to the court only. The rental is always paid with money **at the club**; the confirmation and the front desk show "collect ₹X at the club".
+- **Changing it later:** staff can add or remove a rental on any booking (including walk-ups) from the Master schedule panel or the Front desk list until the game ends. A player can remove their own rental under My bookings before the free-cancellation cutoff.
+- **Cancel or no-show:** the rental is dropped with the booking and is never charged.
+- Database: `club_settings.rental_enabled / rental_large_price / rental_small_price`, `bookings.rental / rental_price`, function `set_booking_rental`. The server sets the price from Settings, so a player cannot change it.
+- Not tracked yet: a "collected" tick for the rental money.
+
+### Rental at check-in, history and report (new)
+- **Check-in step:** the check-in panel (Front desk and Master schedule) has a "Rental at check-in" choice preset to what was booked: No rental, Large pack or Small pack. Staff can change it (for example to a smaller pack, or none). If a pack is chosen, "Rental handed out and ₹X collected" must be ticked before they can check in. After check-in the rental is locked; Undo check-in unlocks it.
+- **History:** every rental change is saved in `rental_events` (added, removed, changed, confirmed, unconfirmed) with the pack before and after, the price at the time, sport, peak or off-peak, who did it (player or staff name) and when. Admin read only.
+- **Report:** Settings → Rental report (admin). Pick dates and Run: online bookings, share booked with a rental, rentals taken and revenue by sport, pack and peak, changes after booking, and counts by staff member. "Download history (CSV)" saves the event list. Revenue counts rentals confirmed at check-in only.
+- **Rental report summary:** the top of the report answers one question for rentals booked in advance: at check-in, did people keep it, change the pack (smaller or larger), or cancel it? It shows counts and shares for checked-in bookings, plus rentals added at the desk with none booked, and booked value against money collected. "Show details" opens the full tables (taken by sport and pack, every change, by staff, bookings that were not checked in). "Download history (CSV)" saves every individual change.
+
+## Header for staff and admins (new)
+Staff and admins get a shorter tab bar and a name menu.
+- **Players:** unchanged (Book a court, My bookings, Profile).
+- **Staff:** Book a court, Front desk, Master schedule.
+- **Admin:** the staff tabs plus Customers and Settings.
+- **Name menu** (button showing "Name · Staff/Admin ▾"): My bookings, Profile, Sign out, and for admins "Preview as". It closes with Escape, a click elsewhere, or choosing a link. The desk "Lock" button stays beside it.
+- **Phones:** the Menu button lists the same tabs, with My bookings and Profile at the end.
+
+## What staff can and cannot do
+- **Can:** use the Front desk (check in, undo, mark no-show), use the Master schedule to add phone and walk-up bookings (with an optional rental, paid at the counter), cancel phone and walk-up bookings, and add or remove a rental on any booking until check-in opens.
+- **Cannot:** book a court through Book a court (the server refuses it: "Staff book courts for players on the Master schedule"; the page shows a pointer to the schedule instead of the booking form), cancel online bookings, create lessons, leagues or blocks, or open Customers, Settings or the Rental report.
+- **Admins** can do all of the above, including booking through Book a court, and cancelling anything.
+- Phone and walk-up bookings have no player account, no credit and no online payment: the court and any rental are paid at the counter.
+
+## Cancellation record (new)
+- **Reason required:** when staff or an admin cancel a booking that is not their own, the Master schedule panel asks "Why is it being cancelled?" (player called, booked by mistake or wrong time, moved to another time, duplicate, weather, court or club unavailable, or other with a note) plus an optional note. The server refuses the cancel without a reason, and "Other" needs a note.
+- **Kept on the booking:** reason, note, who cancelled (name and role) and when. A player cancelling their own booking is recorded as "by player" with no reason needed. No-shows are recorded separately by the existing no-show flow.
+- **Report:** Settings → Cancellation record (admin). Pick dates and Run: totals by staff, player and no-show, counts by reason, counts by person, and a list of cancelled bookings (game, court, booking, type, reason and note, who, when). "Download (CSV)" saves the full list.
+- Not covered yet: removing a maintenance block or a lesson/league slot has no reason, and cancellations made automatically when a payment hold runs out are not listed with a reason.
+
+## Booking sources
+
+Settings → **Booking sources** (admin only) controls where bookings can come from. Each source has a name, a short code (e.g. HUD) and a colour. Code and colour are assigned automatically, and they show on the Master schedule and its legend.
+
+- **Website** and **Front desk** are built in and cannot be changed.
+- **Outside platform (needs a connection)**, e.g. Playtomic or Hudle: not connected yet, so an admin enters these bookings by hand. Price is 0 because they are paid on the platform ("Paid on Hudle"). Only an admin can cancel them.
+- **Run by the club (no connection)**, e.g. lessons or leagues: added by an admin. Tick "Collect court price at the counter" to charge the court price at the counter; leave it off for no charge.
+- Sources are switched off, never deleted. A source that already has bookings cannot change type.
+- Staff only ever see Website, Front desk and sources that appear that day; only admins can add bookings for external or club-run sources.
+
+To add Hudle: Settings → Booking sources → name "Hudle", type "Outside platform" → Add source.
+
+## Settings layout (admin)
+
+Admins have these tabs: Book a court, Front desk, Master schedule, Customers, **Settings**.
+
+Settings has seven groups in a list on the left (a dropdown on phones). Each group shows its sections as plain headed blocks with fields in two columns, and each section has its own Save button. Edits stay if you switch groups before saving:
+
+| Group | Contains |
+|---|---|
+| Club | Club (currency, time zone, how courts are assigned, changeover, online payment), Booking rules (longest booking, upcoming bookings per player, bookable days ahead, payment hold), Cancellations and no-shows |
+| Courts and pricing | Courts, Rates (with the peak start time), Equipment rental, Promotions (placeholder) |
+| Booking sources | Source list and Add source |
+| Team | Desk staff and PINs, Add a staff login |
+| Display | Appearance, Booked slots |
+| Reports | Cancellation record, Rental report (date range and CSV) |
+| Future plans | Private notepad |
+
+The Rates Save button also saves the peak start time.
