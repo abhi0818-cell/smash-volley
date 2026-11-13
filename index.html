@@ -117,6 +117,34 @@ input,select{background:var(--bg);border:1px solid var(--line);padding:9px 10px;
 .fsec .tbody>label:not(.check){grid-column:auto}
 .fsec .tbody>.btn{justify-self:start;width:auto;grid-column:1/-1}
 @media(max-width:760px){.sset{grid-template-columns:1fr;gap:12px}.snav{display:none}.snavsel{display:block;width:100%}.fsec .tbody{grid-template-columns:1fr}.fsec .tbody>label:not(.check){grid-column:1/-1}}
+.cwrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:28px;margin-top:18px;align-items:start}
+.csearch{width:100%;margin-bottom:8px}
+.cchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.cchip{all:unset;box-sizing:border-box;padding:5px 12px;border:1px solid var(--ink);font:600 13px var(--font-display);letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.cchip[aria-pressed=true]{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.crow{display:grid;grid-template-columns:minmax(0,2fr) .6fr .8fr .9fr;gap:8px;align-items:center;padding:10px 8px;border-top:1px solid var(--line);text-align:left}
+.crow small{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.crow b{display:block;overflow:hidden;text-overflow:ellipsis}
+.chd{font-size:12px;color:var(--muted);border-top:0;text-transform:uppercase;letter-spacing:.05em}
+.cbtn{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,2fr) .6fr .8fr .9fr;gap:8px;align-items:center;padding:10px 8px;border-top:1px solid var(--line);cursor:pointer;width:100%}
+.cbtn:hover{background:var(--surface)}.cbtn.on{background:var(--surface);box-shadow:inset 3px 0 0 var(--primary)}
+.cbtn:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.cpanel{min-width:0}.cempty{padding:30px 0}
+.cname{font:700 24px var(--font-display);text-transform:uppercase;margin:10px 0 2px}
+.cback{display:none}
+.csec{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+.ct{font:700 14px var(--font-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+.cmet{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cmet>div{background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted)}
+.cmet b{display:block;font-size:20px;color:var(--ink)}
+.clots{margin-top:10px}.line{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:14px}
+.cform{margin-top:12px}.cft{font-weight:600;font-size:14px;margin-bottom:6px}
+.f2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.f2 input,.f2 select{max-width:100%}
+@media(max-width:760px){.cwrap{grid-template-columns:1fr}.cwrap.sel .clist{display:none}.cwrap:not(.sel) .cpanel{display:none}.cback{display:inline-block}.cmet{grid-template-columns:repeat(2,1fr)}}
+.prbox{border:1px solid var(--line);padding:14px;margin-top:12px;background:var(--surface)}
+.prhd{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}.prstat{margin-bottom:10px;font-size:13px}
+.prgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin-bottom:8px}
+.prchk{display:flex;gap:20px;flex-wrap:wrap;margin:8px 0 10px}
 .srcrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.srccode{font-family:var(--font-mono);min-width:40px}.srcrow input[data-src],.srcrow select{max-width:300px}
 .rtab{width:100%;border-collapse:collapse;font-size:14px}.rtab th,.rtab td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}.rbtn{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;justify-content:space-between;text-align:left;padding:9px 10px;background:var(--bg);border:1px solid var(--line);border-radius:8px}.rbtn span{flex-basis:100%;font-size:13px;opacity:.75}.rbtn i{font-style:normal;font-weight:600}.rbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .price{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 0}
@@ -396,6 +424,7 @@ async function doShared(id,on){
 }
 async function loadPeople(){
   var r=await sb.rpc('admin_list_customers');S.people=r.data||[];
+  try{await loadPromos()}catch(e){S.promos=S.promos||[]}
   await loadPins();if(S.view==='people')renderPeople();
 }
 async function loadMine(){
@@ -771,27 +800,48 @@ function staffTiles(){
   var loginTile=tile('login','Add a staff login','Create a username and password for the club desk. Staff cannot change the password.','<div class="tbody"><p class="muted">You choose the username and password and give them to staff. Staff have no way to change the password. Only you can set a new one, from their row below. Type a full email address instead of a username if you want a personal login.</p><div class="sfrow"><label style="margin:0">Name shown<input data-sf="ln" maxlength="60" placeholder="Front desk" value="'+esc(sfv('ln',''))+'"></label><label style="margin:0">Username<input data-sf="lu" maxlength="60" autocomplete="off" autocapitalize="none" placeholder="frontdesk" value="'+esc(sfv('lu',''))+'"></label><label style="margin:0">Password (8+)<input data-sf="lp" autocomplete="off" value="'+esc(sfv('lp',''))+'"></label></div><label class="check"><input type="checkbox" data-sfc="ls"'+(S.sf.ls!==false?' checked':'')+'>Shared by several people (ask for a PIN at the desk)</label><button class="btn" data-act="login-create"'+b0+'>Create staff login</button>'+sm('login')+'</div>');
   return pinTile+loginTile;
 }
-function renderPeople(){
-  var el=$('v-people'),L=S.people;
-  if(L===null){el.innerHTML='<p class="muted" style="margin-top:20px">Loading customers…</p>';return}
-  var m=S.pplMsg||{};
-  var b0=S.busyBtn?' disabled':'',sm=function(k){var x=S.sfMsg[k];return x?'<div class="'+(x.ok?'okmsg':'err')+'" role="alert">'+esc(x.t)+'</div>':''};
-  el.innerHTML='<h2 style="margin-top:20px">Customers</h2><p class="muted" style="margin-top:6px">Staff logins and desk PINs are managed in Settings. Set a person\'s role (User, Staff or Admin) and add or remove credit. Credit is in '+esc(S.settings.currency)+' and is used automatically on their next booking.</p><div class="list">'+
-   (L.length?L.map(function(c){return '<div class="item"><div><h3>'+esc(c.full_name||c.email)+'</h3><div class="muted">'+esc(c.email)+(c.phone?' · '+esc(c.phone):'')+'</div><div>'+c.bookings+' booking'+(+c.bookings===1?'':'s')+(+c.no_shows?' · <b>'+c.no_shows+' no-show'+(+c.no_shows===1?'':'s')+'</b>':'')+'</div>'+(c.role==='staff'?'<div class="sfrow" style="margin-top:8px"><label class="check" style="margin:0"><input type="checkbox" data-shared="'+c.id+'"'+(S.shared.indexOf(String(c.id))>-1?' checked':'')+'>Shared login (PIN)</label><label style="margin:0">New password<input data-sf="pw.'+c.id+'" autocomplete="off" placeholder="8+ characters" value="'+esc(sfv('pw.'+c.id,''))+'" style="width:170px"></label><button class="btn ghost" data-act="login-pw" data-id="'+c.id+'"'+b0+'>Set password</button></div>'+sm(c.id):'')+'</div>'+
-    '<div class="row" style="flex:none;align-items:flex-end;flex-wrap:wrap;gap:8px"><label style="margin:0">Role<select data-role="'+c.id+'"'+(S.user&&c.id===S.user.id?' disabled':'')+'>'+['user','staff','admin'].map(function(r){return '<option value="'+r+'"'+((c.role||'user')===r?' selected':'')+'>'+({user:'User',staff:'Staff',admin:'Admin'})[r]+'</option>'}).join('')+'</select></label><div><span class="muted">Credit</span><br><b style="font-size:20px">'+money(c.paid_credit!=null?c.paid_credit:c.credit)+'</b>'+(+c.promo_credit>0?'<div class="muted">+ '+money(c.promo_credit)+' promo</div>':'')+'</div>'+
-    '<label style="margin:0">Amount (+ or −)<input style="width:110px" type="number" step="0.5" inputmode="decimal" data-ppl="'+c.id+'.amt" value="'+esc((S.pplIn&&S.pplIn[c.id]&&S.pplIn[c.id].amt)||'')+'"></label>'+
-    '<label style="margin:0">Reason<input style="width:170px" data-ppl="'+c.id+'.note" value="'+esc((S.pplIn&&S.pplIn[c.id]&&S.pplIn[c.id].note)||'')+'"></label>'+
-    '<button class="btn ghost" data-act="adj" data-id="'+c.id+'"'+(S.busyBtn?' disabled':'')+'>Apply</button></div>'+promoRow(c)+(m[c.id]?'<div class="'+(m[c.id].ok?'okmsg':'err')+'" role="alert" style="flex-basis:100%">'+esc(m[c.id].t)+'</div>':'')+'</div>'}).join(''):'<p class="muted">No customers yet.</p>')+'</div>';
+function loadPromos(){return sb.rpc('admin_list_promotions').then(function(r){S.promos=Array.isArray(r.data)?r.data:[]})}
+function offerRunning(o){var t=clubToday();return o.active&&(!o.starts_on||t>=o.starts_on)&&(!o.ends_on||t<=o.ends_on)&&(o.budget==null||+o.given_total+ +o.amount<=+o.budget)}
+function custFiltered(){var q=(S.custQ||'').toLowerCase().trim(),f=S.custRole||'all';return (S.people||[]).filter(function(c){var r=c.role||'user';if(f!=='all'&&r!==f)return false;if(!q)return true;return ((c.full_name||'')+' '+c.email+' '+(c.phone||'')).toLowerCase().indexOf(q)>-1})}
+function custRows(){var L=custFiltered();if(!L.length)return '<p class="muted" style="padding:12px 0">No customers match.</p>';
+  return '<div class="crow chd"><span>Name</span><span>Games</span><span>No-shows</span><span>Credit</span></div>'+L.map(function(c){var cr=+c.credit||0;return '<button class="crow cbtn'+(S.custSel===c.id?' on':'')+'" data-act="cust" data-id="'+c.id+'"><span><b>'+esc(c.full_name||c.email)+'</b><small>'+esc(c.full_name?c.email:'')+(c.role&&c.role!=='user'?(c.full_name?' · ':'')+({staff:'Staff',admin:'Admin'})[c.role]:'')+'</small></span><span>'+c.bookings+'</span><span>'+(+c.no_shows||'—')+'</span><span>'+(cr>0?money(cr):'—')+'</span></button>'}).join('')}
+function cDate(x){return x?new Date(x).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:S.settings.timezone}):'—'}
+function custPanel(){var id=S.custSel;if(!id)return '<p class="muted cempty">Pick a customer from the list.</p>';
+  var c=(S.people||[]).filter(function(x){return x.id===id})[0];if(!c)return '<p class="muted">Customer not found.</p>';
+  var d=S.cdet&&S.cdet.profile&&S.cdet.profile.id===id?S.cdet:null,me=S.user&&S.user.id===id,b0=S.busyBtn?' disabled':'',m=(S.pplMsg||{})[id],i=(S.pplIn&&S.pplIn[id])||{};
+  var sm=function(k){var x=S.sfMsg[k];return x?'<div class="'+(x.ok?'okmsg':'err')+'" role="alert">'+esc(x.t)+'</div>':''};
+  var h='<button class="btn ghost cback" data-act="cback">← All customers</button><h3 class="cname">'+esc(c.full_name||c.email)+'</h3><div class="muted">'+esc(c.email)+(c.phone?' · '+esc(c.phone):'')+(c.joined?' · Joined '+cDate(c.joined):'')+'</div>'+(m?'<div class="'+(m.ok?'okmsg':'err')+'" role="alert" style="margin-top:8px">'+esc(m.t)+'</div>':'')+'';
+  h+='<div class="csec"><div class="ct">Role</div><div class="f2"><select data-role="'+c.id+'"'+(me?' disabled':'')+' aria-label="Role">'+['user','staff','admin'].map(function(r){return '<option value="'+r+'"'+((c.role||'user')===r?' selected':'')+'>'+({user:'Player',staff:'Staff',admin:'Admin'})[r]+'</option>'}).join('')+'</select>'+(me?'<span class="muted">You cannot change your own role.</span>':'')+'</div>'+
+    (c.role==='staff'?'<div class="sfrow" style="margin-top:8px"><label class="check" style="margin:0"><input type="checkbox" data-shared="'+c.id+'"'+(S.shared.indexOf(String(c.id))>-1?' checked':'')+'>Shared login (PIN)</label><label style="margin:0">New password<input data-sf="pw.'+c.id+'" autocomplete="off" placeholder="8+ characters" value="'+esc(sfv('pw.'+c.id,''))+'" style="width:170px"></label><button class="btn ghost" data-act="login-pw" data-id="'+c.id+'"'+b0+'>Set password</button></div>'+sm(c.id):'')+'</div>';
+  if(!d)return h+'<p class="muted" style="margin-top:14px">Loading details…</p>';
+  var st=d.stats||{};
+  h+='<div class="csec"><div class="ct">Activity</div><div class="cmet">'+[[st.bookings,'bookings'],[st.upcoming,'upcoming'],[st.no_shows,'no-shows'],[st.cancelled,'cancelled'],[st.rentals,'with rental'],[st.last_booking?cDate(st.last_booking):'—','last game']].map(function(x){return '<div><b>'+esc(String(x[0]))+'</b>'+x[1]+'</div>'}).join('')+'</div></div>';
+  h+='<div class="csec"><div class="ct">Credit</div><div class="cmet"><div><b>'+money(d.paid)+'</b>paid credit</div><div><b>'+money(d.promo)+'</b>promo credit</div></div>';
+  var lots=(d.lots||[]).filter(function(l){return +l.remaining>0});
+  if(lots.length)h+='<div class="clots">'+lots.map(function(l){return '<div class="line"><span>'+(l.kind==='promo'?'Promo · '+esc(l.note||'')+' · expires '+fmtExp(l.expires_at):'Paid · '+esc(l.note||''))+'</span><span>'+money(l.remaining)+(+l.remaining<+l.amount?' of '+money(l.amount):'')+'</span></div>'}).join('')+'</div>';
+  if(me)h+='<p class="muted" style="margin-top:8px">You cannot change your own credit.</p>';
+  else{var offers=(S.promos||[]).filter(offerRunning);
+    h+='<div class="cform"><div class="cft">Give an offer</div>'+(offers.length?'<div class="f2"><select data-ppl="'+id+'.offer" aria-label="Offer"><option value="">Choose an offer</option>'+offers.map(function(o){return '<option value="'+o.id+'"'+(i.offer===o.id?' selected':'')+'>'+esc(o.name)+' · '+money(o.amount)+' · expires after '+o.expiry_days+' days'+'</option>'}).join('')+'</select><input data-ppl="'+id+'.pnote" placeholder="Note (required)" value="'+esc(i.pnote||'')+'" aria-label="Note"><button class="btn ghost" data-act="give" data-id="'+id+'"'+b0+'>Give offer</button></div>':'<p class="muted">No offers are running. Create one in Settings → Promotions.</p>')+'</div>'+
+      '<div class="cform"><div class="cft">Top up or remove paid credit</div><div class="f2"><select data-ppl="'+id+'.ttype" aria-label="Type"><option value="topup"'+(i.ttype!=='remove'?' selected':'')+'>Top-up (money taken)</option><option value="remove"'+(i.ttype==='remove'?' selected':'')+'>Remove (correction)</option></select><input type="number" min="1" step="0.5" inputmode="decimal" style="width:110px" data-ppl="'+id+'.amt" placeholder="Amount" value="'+esc(i.amt||'')+'" aria-label="Amount"><input data-ppl="'+id+'.note" placeholder="Note (required)" value="'+esc(i.note||'')+'" aria-label="Note"></div><div class="f2" style="margin-top:6px"><select data-ppl="'+id+'.method" aria-label="Payment method"><option value="">Method (optional)</option>'+['cash','upi','card','other'].map(function(x){return '<option value="'+x+'"'+(i.method===x?' selected':'')+'>'+({cash:'Cash',upi:'UPI',card:'Card',other:'Other'})[x]+'</option>'}).join('')+'</select><input data-ppl="'+id+'.receipt" placeholder="Receipt no. (optional)" value="'+esc(i.receipt||'')+'" aria-label="Receipt"><button class="btn ghost" data-act="adj" data-id="'+id+'"'+b0+'>Apply</button></div></div>'}
+  h+='</div>';
+  var led=d.ledger||[],all=!!S.cLedAll,shown=all?led:led.slice(0,6);
+  h+='<div class="csec"><div class="ct">Credit history</div>'+(shown.length?shown.map(function(x){var lab=x.reason==='promo_grant'?'Offer · '+esc(x.note||''):x.reason==='admin_adjust'?(+x.amount>0?'Top-up':'Removed')+(x.method?' ('+esc(x.method)+')':'')+' · '+esc(x.note||'')+(x.receipt?' · '+esc(x.receipt):''):esc(LREASON[x.reason]||x.reason);return '<div class="line"><span>'+cDate(x.created_at)+' · '+lab+(x.by_name&&(x.reason==='admin_adjust'||x.reason==='promo_grant')?' <small>by '+esc(x.by_name)+'</small>':'')+(x.kind==='promo'&&x.reason!=='promo_grant'?' <small>(promo)</small>':'')+'</span><span>'+(+x.amount>0?'+':'−')+money(Math.abs(+x.amount))+'</span></div>'}).join('')+(led.length>6?'<button class="btn ghost" style="margin-top:6px" data-act="cled">'+(all?'Show less':'Show details')+'</button>':''):'<p class="muted">No credit activity yet.</p>')+'</div>';
+  return h;
 }
-function promoRow(c){var i=(S.pplIn&&S.pplIn[c.id])||{};return '<div class="row" style="flex-basis:100%;align-items:flex-end;flex-wrap:wrap;gap:8px"><label style="margin:0">Promo credit<input style="width:110px" type="number" min="1" step="1" inputmode="decimal" data-ppl="'+c.id+'.pamt" value="'+esc(i.pamt||'')+'"></label><label style="margin:0">Expires on<input type="date" data-ppl="'+c.id+'.pexp" min="'+esc(clubToday())+'" value="'+esc(i.pexp||'')+'"></label><label style="margin:0">Reason<input style="width:170px" data-ppl="'+c.id+'.pnote" value="'+esc(i.pnote||'')+'"></label><button class="btn ghost" data-act="promo" data-id="'+c.id+'"'+(S.busyBtn?' disabled':'')+'>Give promo credit</button></div>'}
-async function doPromo(id){
-  var i=(S.pplIn&&S.pplIn[id])||{},amt=parseFloat(i.pamt);S.pplMsg={};
-  if(!(amt>0)){S.pplMsg[id]={t:'Enter the promo amount, like 200.'};return renderPeople()}
-  if(!i.pexp){S.pplMsg[id]={t:'Pick the date the promo credit expires.'};return renderPeople()}
-  if(!(i.pnote||'').trim()){S.pplMsg[id]={t:'Add a short reason, such as the offer name.'};return renderPeople()}
-  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_grant_promo',{p_user:id,p_amount:amt,p_expires:i.pexp,p_note:i.pnote.trim()});S.busyBtn=false;
-  if(r.error){var m=r.error.message||'';S.pplMsg[id]={t:/invalid_expiry/.test(m)?'The expiry must be from today up to two years ahead.':/invalid_amount/.test(m)?'Enter an amount up to 100,000.':'Could not give that promo credit.'};return renderPeople()}
-  S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Promo credit added. It expires at the end of '+i.pexp+'.'};await loadPeople();
+function renderPeople(){
+  var el=$('v-people');
+  if(S.people===null){el.innerHTML='<p class="muted" style="margin-top:20px">Loading customers…</p>';return}
+  var F=[['all','All'],['user','Players'],['staff','Staff'],['admin','Admins']];
+  el.innerHTML='<h2 style="margin-top:20px">Customers</h2><p class="muted" style="margin-top:6px">Open a customer to see their activity, change their role or manage their credit. Staff logins and desk PINs are managed in Settings.</p><div class="cwrap'+(S.custSel?' sel':'')+'"><div class="clist"><input class="csearch" data-cq="1" placeholder="Search name, email or phone" value="'+esc(S.custQ||'')+'" aria-label="Search customers"><div class="cchips">'+F.map(function(f){return '<button class="cchip" data-act="cfilt" data-r="'+f[0]+'" aria-pressed="'+((S.custRole||'all')===f[0])+'">'+f[1]+'</button>'}).join('')+'</div><div id="crows">'+custRows()+'</div></div><div class="cpanel" id="cpanel">'+custPanel()+'</div></div>';
+}
+async function loadCdet(id){var r=await sb.rpc('admin_customer_detail',{p_user:id});if(S.custSel!==id)return;S.cdet=r.data&&r.data.profile?r.data:null;if(S.view==='people')renderPeople()}
+var GIVEERR={already_given:'This customer already has that offer.',budget_used_up:'That offer has used up its budget.',offer_inactive:'That offer is switched off.',offer_not_running:'That offer is outside its dates.',self_not_allowed:'You cannot change your own credit.',note_required:'Add a note.',not_found:'That offer no longer exists.',user_not_found:'Customer not found.'};
+async function doGive(id){var i=(S.pplIn&&S.pplIn[id])||{};S.pplMsg={};
+  if(!i.offer){S.pplMsg[id]={t:'Choose an offer.'};return renderPeople()}
+  if(!(i.pnote||'').trim()){S.pplMsg[id]={t:'Add a note, such as why this customer is getting it.'};return renderPeople()}
+  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_give_promotion',{p_user:id,p_promotion:i.offer,p_note:i.pnote.trim()});S.busyBtn=false;
+  if(r.error){var k=Object.keys(GIVEERR).filter(function(x){return (r.error.message||'').indexOf(x)>-1})[0];S.pplMsg[id]={t:GIVEERR[k]||'Could not give that offer.'};return renderPeople()}
+  S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Offer given.'};await loadPeople();await loadPromos();await loadCdet(id);
 }
 async function doSetRole(id,role){
   S.pplMsg={};var r=await sb.rpc('admin_set_role',{p_user:id,p_role:role});
@@ -800,12 +850,13 @@ async function doSetRole(id,role){
   await loadPeople();
 }
 async function doAdjust(id){
-  var i=(S.pplIn&&S.pplIn[id])||{},amt=parseFloat(i.amt);S.pplMsg={};
-  if(!amt){S.pplMsg[id]={t:'Enter an amount, like 200 or −100.'};return renderPeople()}
-  if(!(i.note||'').trim()){S.pplMsg[id]={t:'Add a short reason.'};return renderPeople()}
-  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_adjust_credit',{p_user:id,p_amount:amt,p_note:i.note.trim()});S.busyBtn=false;
-  if(r.error){S.pplMsg[id]={t:/insufficient_credit/.test(r.error.message||'')?'That would take their credit below zero.':'Could not apply that.'};return renderPeople()}
-  S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Done. New balance '+money(r.data)+'.'};await loadPeople();
+  var i=(S.pplIn&&S.pplIn[id])||{},amt=Math.abs(parseFloat(i.amt));S.pplMsg={};
+  if(!(amt>0)){S.pplMsg[id]={t:'Enter an amount, like 200.'};return renderPeople()}
+  if(!(i.note||'').trim()){S.pplMsg[id]={t:'Add a note.'};return renderPeople()}
+  var rem=i.ttype==='remove';
+  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_adjust_credit',{p_user:id,p_amount:rem?-amt:amt,p_note:i.note.trim(),p_method:rem||!i.method?null:i.method,p_receipt:rem||!(i.receipt||'').trim()?null:i.receipt.trim()});S.busyBtn=false;
+  if(r.error){var m=r.error.message||'';S.pplMsg[id]={t:/insufficient_credit/.test(m)?'That would take their paid credit below zero.':/self_not_allowed/.test(m)?'You cannot change your own credit.':/note_required/.test(m)?'Add a note.':/invalid_amount/.test(m)?'Enter an amount up to 100,000.':'Could not apply that.'};return renderPeople()}
+  S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Done. New balance '+money(r.data)+'.'};await loadPeople();await loadCdet(id);
 }
 
 /* ---------- online payment (Razorpay) ---------- */
@@ -1105,7 +1156,7 @@ function csvRep(){var R=S.rep,ev=(R&&R.data&&R.data.events)||[];var cols=['creat
 function renderSettings(){
   var el=$('v-settings');
   if(!S.cfg){el.innerHTML='<p class="muted" style="margin-top:20px">Loading settings…</p>';return}
-  var mode0=({club:['club','rules','cxl'],pricing:['courts','rates','rental','promos'],sources:['sources'],team:['pins','login'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']}[S.sgroup||'club']||[]);S.setOpen=S.setOpen||{};mode0.forEach(function(k){if(S.setOpen[k]===undefined)S.setOpen[k]=true});
+  var mode0=({club:['club','rules','cxl'],pricing:['courts','rates','rental'],promos:['promos'],sources:['sources'],team:['pins','login'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']}[S.sgroup||'club']||[]);S.setOpen=S.setOpen||{};mode0.forEach(function(k){if(S.setOpen[k]===undefined)S.setOpen[k]=true});
   var s=S.cfg.s,r=S.cfg.r,b=S.busyBtn?' disabled':'';
   var curSym=function(){return money(0,s.currency).replace(/[\d.,\s]/g,'')||s.currency};
   var mk={taken:'Just "Taken"',racket:'Racket or paddle',ball:'Ball or shuttle',both:'Racket and ball'};
@@ -1150,15 +1201,42 @@ G.rental=tile('rental','Equipment rental',(s.rental_enabled?'on · large '+money
    '<p class="muted">Peak is weekends, and weekdays from the peak start time.</p>'+
    rate('pickleball','o','Pickleball off-peak')+rate('pickleball','p','Pickleball peak')+rate('badminton','o','Badminton off-peak')+rate('badminton','p','Badminton peak')+
    cfgMsg('rates')+'<button class="btn" data-act="save-rates"'+b+'>Save rates</button></div>');G.look=tile('look','Appearance',lookSum,lookBody(s,b));G.courts=tile('courts','Courts',courtsSum,'<div class="tbody">'+S.cfg.c.map(function(c){return '<div class="setbox" style="background:var(--bg)"><label>Name<input data-k="c.'+c.id+'.name" value="'+esc(c.name)+'"></label><label>Description<input data-k="c.'+c.id+'.description" value="'+esc(c.description)+'"></label><div class="two"><label>Opens<select data-k="c.'+c.id+'.open">'+hourOpts(c.open,0,22)+'</select></label><label>Closes<select data-k="c.'+c.id+'.close">'+hourOpts(c.close,1,23)+'</select></label></div><label class="check"><input type="checkbox" data-k="c.'+c.id+'.active"'+(c.active?' checked':'')+'>Open for booking</label></div>'}).join('')+
-   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>');G.sources=tile('sources','Booking sources',(S.sources||DEFSRC).filter(function(x){return x.enabled}).map(function(x){return esc(x.code)}).join(' · '),sourcesBody());G.cancels=tile('cancels','Cancellation record',S.crep&&S.crep.data?'last run '+esc(S.crep.from)+' to '+esc(S.crep.to):'who cancelled what, and why',cancelBody());G.reports=tile('reports','Rental report',S.rep&&S.rep.data?'last run '+esc(S.rep.from)+' to '+esc(S.rep.to):'trends and CSV',repBody());G.promos=tile('promos','Promotions','Coming soon','<div class="tbody"><p class="muted">Placeholder. Promotions (such as promo codes, off-peak offers or an announcement banner) will be set up here later.</p></div>');G.plans=tile('plans','Future plans',S.notes&&S.notes.trim()?'Notes saved':'Empty notepad','<div class="tbody"><p class="muted">A private notepad for ideas. Only admins can see it.</p><textarea id="notepad" rows="10" style="width:100%;margin-top:8px" maxlength="20000" placeholder="Scribble future ideas here...">'+esc(S.notesDraft!=null?S.notesDraft:(S.notes||''))+'</textarea>'+cfgMsg('plans')+'<div class="row" style="margin-top:10px"><button class="btn" data-act="save-notes"'+b+'>Save notes</button></div></div>');G.team=staffTiles();
+   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>');G.sources=tile('sources','Booking sources',(S.sources||DEFSRC).filter(function(x){return x.enabled}).map(function(x){return esc(x.code)}).join(' · '),sourcesBody());G.cancels=tile('cancels','Cancellation record',S.crep&&S.crep.data?'last run '+esc(S.crep.from)+' to '+esc(S.crep.to):'who cancelled what, and why',cancelBody());G.reports=tile('reports','Rental report',S.rep&&S.rep.data?'last run '+esc(S.rep.from)+' to '+esc(S.rep.to):'trends and CSV',repBody());G.promos=tile('promos','Promo offers','',promosBody());G.plans=tile('plans','Future plans',S.notes&&S.notes.trim()?'Notes saved':'Empty notepad','<div class="tbody"><p class="muted">A private notepad for ideas. Only admins can see it.</p><textarea id="notepad" rows="10" style="width:100%;margin-top:8px" maxlength="20000" placeholder="Scribble future ideas here...">'+esc(S.notesDraft!=null?S.notesDraft:(S.notes||''))+'</textarea>'+cfgMsg('plans')+'<div class="row" style="margin-top:10px"><button class="btn" data-act="save-notes"'+b+'>Save notes</button></div></div>');G.team=staffTiles();
   var mode='settings',sg=S.sgroup||'club';
-  var GRP=[['club','Club'],['pricing','Courts and pricing'],['sources','Booking sources'],['team','Team'],['display','Display'],['reports','Reports'],['plans','Future plans']];
-  var GT={club:['club','rules','cxl'],pricing:['courts','rates','rental','promos'],sources:['sources'],team:['team'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']};
+  var GRP=[['club','Club'],['pricing','Courts and pricing'],['promos','Promotions'],['sources','Booking sources'],['team','Team'],['display','Display'],['reports','Reports'],['plans','Future plans']];
+  var GT={club:['club','rules','cxl'],pricing:['courts','rates','rental'],promos:['promos'],sources:['sources'],team:['team'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']};
   var head='<h2 style="margin-top:20px">Settings</h2><p class="muted" style="margin-top:6px">Changes apply to new bookings straight away. Existing bookings are not changed.</p>',keys=GT[sg]||GT.club;
   var nav='<nav class="snav" aria-label="Settings groups">'+GRP.map(function(g){return '<button class="sgbtn" data-act="sgrp" data-g="'+g[0]+'"'+(sg===g[0]?' aria-current="page"':'')+'>'+g[1]+'</button>'}).join('')+'</nav><select class="snavsel" data-sgsel="1" aria-label="Settings group">'+GRP.map(function(g){return '<option value="'+g[0]+'"'+(sg===g[0]?' selected':'')+'>'+g[1]+'</option>'}).join('')+'</select>';
   el.innerHTML=head+'<div class="sset">'+nav+'<div class="spane">'+keys.map(function(k){return G[k]||''}).join('')+'</div></div>';
   S.flat=false;
 }
+function prv(p,f){var e=((S.promoEdit||{})[p.id])||{};return e[f]!==undefined?e[f]:p[f]}
+function prFields(k,g){return '<div class="prgrid"><label>Name<input '+k('name')+' maxlength="60" value="'+esc(g('name')||'')+'" placeholder="e.g. Welcome offer"></label><label>Credit amount<input type="number" min="1" step="1" inputmode="decimal" '+k('amount')+' value="'+esc(g('amount')==null?'':g('amount'))+'"></label><label>Expires after (days)<input type="number" min="1" max="730" step="1" '+k('expiry_days')+' value="'+esc(g('expiry_days')==null?'':g('expiry_days'))+'"></label><label>Offer starts (optional)<input type="date" '+k('starts_on')+' value="'+esc(g('starts_on')||'')+'"></label><label>Offer ends (optional)<input type="date" '+k('ends_on')+' value="'+esc(g('ends_on')||'')+'"></label><label>Total budget (optional)<input type="number" min="1" step="1" inputmode="decimal" '+k('budget')+' value="'+esc(g('budget')==null?'':g('budget'))+'"></label></div><div class="prchk"><label class="check"><input type="checkbox" '+k('once_per_customer')+''+(g('once_per_customer')?' checked':'')+'>Once per customer</label><label class="check"><input type="checkbox" '+k('active')+''+(g('active')?' checked':'')+'>On</label></div>'}
+function promosBody(){var L=S.promos||[],M=S.promoMsg||{},busy=S.busyBtn?' disabled':'';
+  var h='<div class="tbody"><p class="muted">Offers are the only way to give promo credit. When you give one from a customer\'s page, the amount and expiry come from the offer. Offers can be limited to once per customer and to a total budget.</p>';
+  h+=L.map(function(p){var left=p.budget!=null?+p.budget-+p.given_total:null;return '<div class="prbox"><div class="prhd"><b>'+esc(p.name)+'</b><span class="muted">'+(p.active?(offerRunning(p)?'Running':'On, not available now'):'Off')+'</span></div><div class="muted prstat">Given '+p.given_count+' time'+(+p.given_count===1?'':'s')+' · '+money(p.given_total)+' · used '+money(p.used_total)+' · open '+money(p.open_total)+' · expired '+money(p.expired_total)+(left!=null?' · budget left '+money(left):'')+'</div>'+prFields(function(f){return 'data-pr="'+p.id+'.'+f+'"'},function(f){return prv(p,f)})+
+    '<button class="btn ghost" data-act="pr-save" data-id="'+p.id+'"'+busy+'>Save offer</button>'+(M[p.id]?'<p class="'+(M[p.id].ok?'okmsg':'err')+'" role="status">'+esc(M[p.id].t)+'</p>':'')+'</div>'}).join('');
+  var nw=S.promoNew||{name:'',amount:'',expiry_days:30,starts_on:'',ends_on:'',budget:'',once_per_customer:true,active:true};
+  h+='<h4>New offer</h4><div class="prbox">'+prFields(function(f){return 'data-prnew="'+f+'"'},function(f){return nw[f]})+'<button class="btn" data-act="pr-add"'+busy+'>Add offer</button>'+(M._new?'<p class="'+(M._new.ok?'okmsg':'err')+'" role="status">'+esc(M._new.t)+'</p>':'')+'</div></div>';
+  return h}
+function prErr(e){var m=(e&&e.message)||'';return /invalid_name/.test(m)?'Enter a name of 1 to 60 characters.':/invalid_amount/.test(m)?'Enter an amount between 1 and 100,000.':/invalid_expiry/.test(m)?'Expiry must be 1 to 730 days.':/invalid_dates/.test(m)?'The end date must be the same as or after the start date.':/invalid_budget/.test(m)?'The budget must be more than 0.':/not_allowed/.test(m)?'Only an admin can change offers.':'Could not save the offer.'}
+function prArgs(id,g){var bu=String(g('budget')==null?'':g('budget')).trim();return {p_id:id,p_name:String(g('name')||'').trim(),p_amount:parseFloat(g('amount')),p_expiry_days:parseInt(g('expiry_days'),10),p_starts:g('starts_on')||null,p_ends:g('ends_on')||null,p_once:!!g('once_per_customer'),p_budget:bu===''?null:parseFloat(bu),p_active:!!g('active')}}
+async function savePromo(id){var p=(S.promos||[]).filter(function(x){return x.id===id})[0];if(!p)return;S.promoMsg={};
+  var args=prArgs(id,function(f){return prv(p,f)});
+  S.busyBtn=true;renderSettings();var r=await sb.rpc('admin_save_promotion',args);S.busyBtn=false;
+  if(r.error)S.promoMsg[id]={t:prErr(r.error)};else{S.promoEdit[id]=undefined;S.promoMsg[id]={ok:true,t:'Saved. Applies to offers given from now on.'};try{await loadPromos()}catch(e){}}
+  renderSettings()}
+async function addPromo(){var nw=S.promoNew||{name:'',amount:'',expiry_days:30,starts_on:'',ends_on:'',budget:'',once_per_customer:true,active:true};S.promoMsg={};
+  S.busyBtn=true;renderSettings();var r=await sb.rpc('admin_save_promotion',prArgs(null,function(f){return nw[f]}));S.busyBtn=false;
+  if(r.error)S.promoMsg._new={t:prErr(r.error)};else{S.promoNew=null;S.promoMsg._new={ok:true,t:'Added '+(r.data&&r.data.name||'offer')+'.'};try{await loadPromos()}catch(e){}}
+  renderSettings()}
+document.addEventListener('input',function(e){var d=e.target.dataset||{};
+  if(d.cq){S.custQ=e.target.value;var rw=$('crows');if(rw)rw.innerHTML=custRows();return}
+  if(d.pr){var q=d.pr.split('.');S.promoEdit=S.promoEdit||{};S.promoEdit[q[0]]=S.promoEdit[q[0]]||{};S.promoEdit[q[0]][q[1]]=e.target.type==='checkbox'?e.target.checked:e.target.value}
+  else if(d.prnew){S.promoNew=S.promoNew||{name:'',amount:'',expiry_days:30,starts_on:'',ends_on:'',budget:'',once_per_customer:true,active:true};S.promoNew[d.prnew]=e.target.type==='checkbox'?e.target.checked:e.target.value}});
+document.addEventListener('change',function(e){var d=e.target.dataset||{};
+  if(d.pr&&e.target.type==='checkbox'){var q=d.pr.split('.');S.promoEdit=S.promoEdit||{};S.promoEdit[q[0]]=S.promoEdit[q[0]]||{};S.promoEdit[q[0]][q[1]]=e.target.checked}
+  else if(d.prnew&&e.target.type==='checkbox'){S.promoNew=S.promoNew||{name:'',amount:'',expiry_days:30,starts_on:'',ends_on:'',budget:'',once_per_customer:true,active:true};S.promoNew[d.prnew]=e.target.checked}});
 function setCfg(el){
   var k=el.dataset&&el.dataset.k;if(!k||!S.cfg)return;var p=k.split('.'),v=el.type==='checkbox'?el.checked:el.value;
   if(p[0]==='s')S.cfg.s[p[1]]=v;else if(p[0]==='a'){S.cfg.s.appearance=S.cfg.s.appearance||{};S.cfg.s.appearance[p[1]]=v}else if(p[0]==='r')S.cfg.r[p[1]]=v;
@@ -1272,7 +1350,13 @@ document.addEventListener('click',function(e){S.lastAct=Date.now();if(S.acctOpen
   else if(a==='pay-release'){releaseHold(t.dataset.id).then(function(){S.pending=null;S.err='';return refresh()}).then(renderPanel)}
   else if(a==='save-profile')saveProfile();
   else if(a==='adj')doAdjust(t.dataset.id);
-  else if(a==='promo')doPromo(t.dataset.id);
+  else if(a==='give')doGive(t.dataset.id);
+  else if(a==='cust'){S.custSel=t.dataset.id;S.cdet=null;S.cLedAll=false;S.pplMsg={};renderPeople();loadCdet(t.dataset.id)}
+  else if(a==='cback'){S.custSel=null;S.cdet=null;renderPeople()}
+  else if(a==='cfilt'){S.custRole=t.dataset.r;renderPeople()}
+  else if(a==='cled'){S.cLedAll=!S.cLedAll;renderPeople()}
+  else if(a==='pr-save')savePromo(t.dataset.id);
+  else if(a==='pr-add')addPromo();
   else if(a==='check-in')doCheckIn(t.dataset.id);
   else if(a==='undo-in')doUndoCheckIn(t.dataset.id);
   else if(a==='noshow'){S.confirmNoShow=true;renderPanel()}
@@ -1298,10 +1382,10 @@ async function route(){
   S.view=v;S.sel=null;S.mSel=null;S.err='';S.confirmCancel=false;S.dur=1;
   if(v==='mine')await loadMine();
   if(v==='profile'){S.ledger=null;S.pmsg='';renderAll();await loadLedger()}
-  if(v==='people'){S.people=null;S.pplMsg={};renderAll();await loadPeople()}
+  if(v==='people'){S.people=null;S.pplMsg={};S.custSel=null;S.cdet=null;renderAll();await loadPeople()}
   if(S.frontTimer){clearInterval(S.frontTimer);S.frontTimer=null}
   if(v==='front'){S.front=null;S.frontOpen=null;S.frontNs=null;S.frontMsg='';renderAll();S.frontTimer=setInterval(function(){if(S.view==='front')loadFront()},30000);await loadFront()}
-  if(v==='settings'||v==='reports'||v==='plans'){S.setOpen={};S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}}
+  if(v==='settings'||v==='reports'||v==='plans'){S.setOpen={};S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}try{await loadPromos()}catch(e){S.promos=[]}}
   renderAll();if(S.ready&&v!=='mine'&&v!=='profile'&&v!=='people'&&v!=='front')await refresh();
 }
 window.addEventListener('hashchange',route);
