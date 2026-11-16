@@ -144,6 +144,19 @@ input,select{background:var(--bg);border:1px solid var(--line);padding:9px 10px;
 .prbox{border:1px solid var(--line);padding:14px;margin-top:12px;background:var(--surface)}
 .prhd{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}.prstat{margin-bottom:10px;font-size:13px}
 .prgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin-bottom:8px}
+.pkplans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 10px}
+.pkcol{background:var(--bg);border:1px solid var(--line);padding:10px 12px}
+.pkh{font-weight:600;font-size:13px;margin-bottom:6px}
+.pkcalc{font-size:14px;margin-top:8px;min-height:40px;line-height:1.4}
+.pkcalc .bad{color:var(--bad)}
+.pkyou{font-size:14px;margin:8px 0;background:var(--surface);padding:8px 10px}
+.fdpk{margin-top:30px;border-top:1px solid var(--line);padding-top:16px;max-width:760px}
+.pkres{margin-top:8px}
+.pkpick{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;gap:2px;padding:9px 12px;margin-top:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.pkpick:hover{border-color:var(--ink)}
+.pkwho{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0}
+.pkrow{padding:6px 0;border-bottom:1px solid var(--line)}
+@media(max-width:600px){.pkplans{grid-template-columns:1fr}}
 .prchk{display:flex;gap:20px;flex-wrap:wrap;margin:8px 0 10px}
 .srcrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.srccode{font-family:var(--font-mono);min-width:40px}.srcrow input[data-src],.srcrow select{max-width:300px}
 .rtab{width:100%;border-collapse:collapse;font-size:14px}.rtab th,.rtab td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}.rbtn{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;justify-content:space-between;text-align:left;padding:9px 10px;background:var(--bg);border:1px solid var(--line);border-radius:8px}.rbtn span{flex-basis:100%;font-size:13px;opacity:.75}.rbtn i{font-style:normal;font-weight:600}.rbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -788,7 +801,7 @@ async function refresh(){if(S.view==='settings'||S.view==='reports'||S.view==='p
 
 
 /* ---------- profile and customers ---------- */
-var LREASON={promo_grant:'Promo credit added',cancel_credit:'Cancelled booking',no_show_credit:'No-show credit',spent:'Used on a booking',hold_released:'Unpaid hold released',admin_adjust:'Adjusted by the club'};
+var LREASON={pack_sale:'Pack bought',pack_void:'Pack cancelled',promo_grant:'Promo credit added',cancel_credit:'Cancelled booking',no_show_credit:'No-show credit',spent:'Used on a booking',hold_released:'Unpaid hold released',admin_adjust:'Adjusted by the club'};
 function renderProfile(){
   var el=$('v-profile');if(!S.user){el.innerHTML='';return}
   var led=S.ledger;
@@ -797,7 +810,7 @@ function renderProfile(){
    (S.pmsg?'<div class="'+(S.pmsgOk?'okmsg':'err')+'" role="alert">'+esc(S.pmsg)+'</div>':'')+'<button class="btn" data-act="save-profile"'+(S.busyBtn?' disabled':'')+'>Save details</button></div>'+
    '<div class="setbox"><h3>Credit</h3><div class="price"><span class="muted">Credit (never expires)</span><b>'+money(cs().paid)+'</b></div>'+(cs().promo>0?'<div class="price"><span class="muted">Promo credit</span><b>'+money(cs().promo)+'</b></div>'+cs().lots.map(function(l){return '<div class="muted">'+money(Number(l.amount))+' expires '+esc(fmtExp(l.expires_at))+(l.note?' · '+esc(l.note):'')+'</div>'}).join('')+'<p class="muted">Promo credit is used first, then your credit, then you pay the rest. It is lost on its expiry date.</p>':'')+'<p class="muted">Credit is used automatically on your next booking. You get it when you cancel late (inside the free-cancellation window, or '+lmPct()+'% if it is in the last '+(S.settings.late_cancel_lock_minutes==null?15:S.settings.late_cancel_lock_minutes)+' minutes)'+(S.settings.no_show_credit_percent>0?' or if the club records a no-show ('+S.settings.no_show_credit_percent+'% back)':'')+'. Cancel earlier and your payment is refunded instead.</p>'+
    (S.myNoShows?'<p class="muted">No-shows on record: '+S.myNoShows+'</p>':'')+
-   (led===null?'<p class="muted">Loading…</p>':led.length?'<div class="list" style="margin-top:0">'+led.map(function(x){return '<div class="item" style="padding:8px 12px"><div><div>'+esc(LREASON[x.reason]||x.reason)+(x.kind==='promo'?' (promo)':'')+(x.note?' · '+esc(x.note):'')+'</div><div class="muted">'+esc(new Date(x.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}))+'</div></div><b style="color:'+(Number(x.amount)<0?'var(--muted)':'var(--ok)')+'">'+(Number(x.amount)>0?'+':'−')+money(Math.abs(Number(x.amount)))+'</b></div>'}).join('')+'</div>':'<p class="muted">No credit activity yet.</p>')+'</div></div>';
+   (led===null?'<p class="muted">Loading…</p>':led.length?'<div class="list" style="margin-top:0">'+led.map(function(x){return '<div class="item" style="padding:8px 12px"><div><div>'+esc(LREASON[x.reason]||x.reason)+(x.kind==='promo'?' (promo)':'')+(x.note&&x.reason!=='pack_void'?' · '+esc(x.reason==='pack_sale'?x.note.replace(/^Pack · /,''):x.note):'')+'</div><div class="muted">'+esc(new Date(x.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}))+'</div></div><b style="color:'+(Number(x.amount)<0?'var(--muted)':'var(--ok)')+'">'+(Number(x.amount)>0?'+':'−')+money(Math.abs(Number(x.amount)))+'</b></div>'}).join('')+'</div>':'<p class="muted">No credit activity yet.</p>')+'</div>'+profilePacks()+'</div>';
 }
 async function saveProfile(){
   var n=(S.form.name||'').trim();if(!n){S.pmsg='Enter your name.';S.pmsgOk=false;return renderProfile()}
@@ -834,10 +847,11 @@ function custPanel(){var id=S.custSel;if(!id)return '<p class="muted cempty">Pic
   if(me)h+='<p class="muted" style="margin-top:8px">You cannot change your own credit.</p>';
   else{var offers=(S.promos||[]).filter(offerRunning);
     h+='<div class="cform"><div class="cft">Give an offer</div>'+(offers.length?'<div class="f2"><select data-ppl="'+id+'.offer" aria-label="Offer"><option value="">Choose an offer</option>'+offers.map(function(o){return '<option value="'+o.id+'"'+(i.offer===o.id?' selected':'')+'>'+esc(o.name)+' · '+money(o.amount)+' · expires after '+o.expiry_days+' days'+'</option>'}).join('')+'</select><input data-ppl="'+id+'.pnote" placeholder="Note (required)" value="'+esc(i.pnote||'')+'" aria-label="Note"><button class="btn ghost" data-act="give" data-id="'+id+'"'+b0+'>Give offer</button></div>':'<p class="muted">No offers are running. Create one in Settings → Promotions.</p>')+'</div>'+
-      '<div class="cform"><div class="cft">Top up or remove paid credit</div><div class="f2"><select data-ppl="'+id+'.ttype" aria-label="Type"><option value="topup"'+(i.ttype!=='remove'?' selected':'')+'>Top-up (money taken)</option><option value="remove"'+(i.ttype==='remove'?' selected':'')+'>Remove (correction)</option></select><input type="number" min="1" step="0.5" inputmode="decimal" style="width:110px" data-ppl="'+id+'.amt" placeholder="Amount" value="'+esc(i.amt||'')+'" aria-label="Amount"><input data-ppl="'+id+'.note" placeholder="Note (required)" value="'+esc(i.note||'')+'" aria-label="Note"></div><div class="f2" style="margin-top:6px"><select data-ppl="'+id+'.method" aria-label="Payment method"><option value="">Method (optional)</option>'+['cash','upi','card','other'].map(function(x){return '<option value="'+x+'"'+(i.method===x?' selected':'')+'>'+({cash:'Cash',upi:'UPI',card:'Card',other:'Other'})[x]+'</option>'}).join('')+'</select><input data-ppl="'+id+'.receipt" placeholder="Receipt no. (optional)" value="'+esc(i.receipt||'')+'" aria-label="Receipt"><button class="btn ghost" data-act="adj" data-id="'+id+'"'+b0+'>Apply</button></div></div>'}
+      '<div class="cform"><div class="cft">Top up or remove paid credit</div><div class="f2"><select data-ppl="'+id+'.ttype" aria-label="Type"><option value="topup"'+(i.ttype!=='remove'?' selected':'')+'>Top-up (money taken)</option><option value="remove"'+(i.ttype==='remove'?' selected':'')+'>Remove (correction)</option></select><input type="number" min="1" step="0.5" inputmode="decimal" style="width:110px" data-ppl="'+id+'.amt" placeholder="Amount" value="'+esc(i.amt||'')+'" aria-label="Amount"><input data-ppl="'+id+'.note" placeholder="Note (required)" value="'+esc(i.note||'')+'" aria-label="Note"></div><div class="f2" style="margin-top:6px"><select data-ppl="'+id+'.method" aria-label="Payment method"><option value="">Method (optional)</option>'+['cash','upi','card','other'].map(function(x){return '<option value="'+x+'"'+(i.method===x?' selected':'')+'>'+({cash:'Cash',upi:'UPI',card:'Card',other:'Other'})[x]+'</option>'}).join('')+'</select><input data-ppl="'+id+'.receipt" placeholder="Receipt no. (optional)" value="'+esc(i.receipt||'')+'" aria-label="Receipt"><button class="btn ghost" data-act="adj" data-id="'+id+'"'+b0+'>Apply</button></div></div>'+packSellForm(id,d.pack_plans,i)}
   h+='</div>';
+  h+=packHistory(id,d,i);
   var led=d.ledger||[],all=!!S.cLedAll,shown=all?led:led.slice(0,6);
-  h+='<div class="csec"><div class="ct">Credit history</div>'+(shown.length?shown.map(function(x){var lab=x.reason==='promo_grant'?'Offer · '+esc(x.note||''):x.reason==='admin_adjust'?(+x.amount>0?'Top-up':'Removed')+(x.method?' ('+esc(x.method)+')':'')+' · '+esc(x.note||'')+(x.receipt?' · '+esc(x.receipt):''):esc(LREASON[x.reason]||x.reason);return '<div class="line"><span>'+cDate(x.created_at)+' · '+lab+(x.by_name&&(x.reason==='admin_adjust'||x.reason==='promo_grant')?' <small>by '+esc(x.by_name)+'</small>':'')+(x.kind==='promo'&&x.reason!=='promo_grant'?' <small>(promo)</small>':'')+'</span><span>'+(+x.amount>0?'+':'−')+money(Math.abs(+x.amount))+'</span></div>'}).join('')+(led.length>6?'<button class="btn ghost" style="margin-top:6px" data-act="cled">'+(all?'Show less':'Show details')+'</button>':''):'<p class="muted">No credit activity yet.</p>')+'</div>';
+  h+='<div class="csec"><div class="ct">Credit history</div>'+(shown.length?shown.map(function(x){var lab=x.reason==='promo_grant'?'Offer · '+esc(x.note||''):x.reason==='pack_sale'?'Pack · '+esc((x.note||'').replace(/^Pack · /,''))+(x.method?' ('+esc(x.method)+')':'')+(x.receipt?' · '+esc(x.receipt):''):x.reason==='admin_adjust'?(+x.amount>0?'Top-up':'Removed')+(x.method?' ('+esc(x.method)+')':'')+' · '+esc(x.note||'')+(x.receipt?' · '+esc(x.receipt):''):esc(LREASON[x.reason]||x.reason);return '<div class="line"><span>'+cDate(x.created_at)+' · '+lab+(x.by_name&&(x.reason==='admin_adjust'||x.reason==='promo_grant'||x.reason==='pack_sale')?' <small>by '+esc(x.by_name)+'</small>':'')+(x.kind==='promo'&&x.reason!=='promo_grant'?' <small>(promo)</small>':'')+'</span><span>'+(+x.amount>0?'+':'−')+money(Math.abs(+x.amount))+'</span></div>'}).join('')+(led.length>6?'<button class="btn ghost" style="margin-top:6px" data-act="cled">'+(all?'Show less':'Show details')+'</button>':''):'<p class="muted">No credit activity yet.</p>')+'</div>';
   return h;
 }
 function renderPeople(){
@@ -946,13 +960,14 @@ function renderFront(){
   if(L===null||L===undefined){el.innerHTML='<p class="muted" style="margin-top:20px">Loading today\'s bookings…</p>';return}
   var exp=L.filter(function(b){return b.status==='confirmed'}),pres=exp.filter(function(b){return b.checked_in_at}).length,
    wait=exp.filter(function(b){var i=fdInfo(b);return i.arr&&!i.attn}).length,att=exp.filter(function(b){return fdInfo(b).attn}).length;
-  var F=S.frontFilter||'all';
+  var F=S.frontFilter||'all',oldPk=$('pkdesk');
   el.innerHTML='<h2 style="margin-top:20px">Front desk</h2><p class="muted" style="margin-top:6px">Today\'s bookings. Check people in as they arrive. Check-in opens '+FD_OPEN+' minutes before the start, and a no-show can be marked '+nsWait()+' minutes after the start.</p>'+
    '<div class="fd-stats"><div><b>'+exp.length+'</b><span>Expected</span></div><div><b>'+pres+'</b><span>Present</span></div><div><b>'+wait+'</b><span>Arriving</span></div><div><b'+(att?' style="color:var(--bad)"':'')+'>'+att+'</b><span>Need attention</span></div></div>'+
    '<div class="fd-tools"><input id="fd-q" type="search" placeholder="Search name or reference" aria-label="Search name or reference" value="'+esc(S.frontQ||'')+'">'+
    [['all','All'],['now','Arriving now'],['in','Present'],['attn','Needs attention']].map(function(x){return '<button class="chip" data-act="front-filter" data-v="'+x[0]+'" aria-pressed="'+(F===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>'+
-   '<div id="fd-msg"></div><div class="list" id="fd-list" style="margin-top:10px"></div>';
+   '<div id="fd-msg"></div><div class="list" id="fd-list" style="margin-top:10px"></div><div class="fdpk" id="pkdesk"></div>';
   renderFrontList();
+  var npk=$('pkdesk');if(oldPk&&oldPk.innerHTML&&npk)npk.parentNode.replaceChild(oldPk,npk);else renderPkDesk();
 }
 function renderFrontList(){
   var L=S.front||[],q=(S.frontQ||'').trim().toLowerCase(),F=S.frontFilter||'all';
@@ -1168,7 +1183,7 @@ function csvRep(){var R=S.rep,ev=(R&&R.data&&R.data.events)||[];var cols=['creat
 function renderSettings(){
   var el=$('v-settings');
   if(!S.cfg){el.innerHTML='<p class="muted" style="margin-top:20px">Loading settings…</p>';return}
-  var mode0=({club:['club','rules','cxl'],pricing:['courts','rates','rental'],promos:['promos'],sources:['sources'],team:['pins','login'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']}[S.sgroup||'club']||[]);S.setOpen=S.setOpen||{};mode0.forEach(function(k){if(S.setOpen[k]===undefined)S.setOpen[k]=true});
+  var mode0=({club:['club','rules','cxl'],pricing:['courts','rates','rental','packs'],promos:['promos'],sources:['sources'],team:['pins','login'],display:['look','marker'],reports:['cancels','reports','packrep'],plans:['plans']}[S.sgroup||'club']||[]);S.setOpen=S.setOpen||{};mode0.forEach(function(k){if(S.setOpen[k]===undefined)S.setOpen[k]=true});
   var s=S.cfg.s,r=S.cfg.r,b=S.busyBtn?' disabled':'';
   var curSym=function(){return money(0,s.currency).replace(/[\d.,\s]/g,'')||s.currency};
   var mk={taken:'Just "Taken"',racket:'Racket or paddle',ball:'Ball or shuttle',both:'Racket and ball'};
@@ -1213,10 +1228,10 @@ G.rental=tile('rental','Equipment rental',(s.rental_enabled?'on · large '+money
    '<p class="muted">Peak is weekends, and weekdays from the peak start time.</p>'+
    rate('pickleball','o','Pickleball off-peak')+rate('pickleball','p','Pickleball peak')+rate('badminton','o','Badminton off-peak')+rate('badminton','p','Badminton peak')+
    cfgMsg('rates')+'<button class="btn" data-act="save-rates"'+b+'>Save rates</button></div>');G.look=tile('look','Appearance',lookSum,lookBody(s,b));G.courts=tile('courts','Courts',courtsSum,'<div class="tbody">'+S.cfg.c.map(function(c){return '<div class="setbox" style="background:var(--bg)"><label>Name<input data-k="c.'+c.id+'.name" value="'+esc(c.name)+'"></label><label>Description<input data-k="c.'+c.id+'.description" value="'+esc(c.description)+'"></label><div class="two"><label>Opens<select data-k="c.'+c.id+'.open">'+hourOpts(c.open,0,22)+'</select></label><label>Closes<select data-k="c.'+c.id+'.close">'+hourOpts(c.close,1,23)+'</select></label></div><label class="check"><input type="checkbox" data-k="c.'+c.id+'.active"'+(c.active?' checked':'')+'>Open for booking</label></div>'}).join('')+
-   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>');G.sources=tile('sources','Booking sources',(S.sources||DEFSRC).filter(function(x){return x.enabled}).map(function(x){return esc(x.code)}).join(' · '),sourcesBody());G.cancels=tile('cancels','Cancellation record',S.crep&&S.crep.data?'last run '+esc(S.crep.from)+' to '+esc(S.crep.to):'who cancelled what, and why',cancelBody());G.reports=tile('reports','Rental report',S.rep&&S.rep.data?'last run '+esc(S.rep.from)+' to '+esc(S.rep.to):'trends and CSV',repBody());G.promos=tile('promos','Promo offers','',promosBody());G.plans=tile('plans','Future plans',S.notes&&S.notes.trim()?'Notes saved':'Empty notepad','<div class="tbody"><p class="muted">A private notepad for ideas. Only admins can see it.</p><textarea id="notepad" rows="10" style="width:100%;margin-top:8px" maxlength="20000" placeholder="Scribble future ideas here...">'+esc(S.notesDraft!=null?S.notesDraft:(S.notes||''))+'</textarea>'+cfgMsg('plans')+'<div class="row" style="margin-top:10px"><button class="btn" data-act="save-notes"'+b+'>Save notes</button></div></div>');G.team=staffTiles();
+   cfgMsg('courts')+'<button class="btn" data-act="save-courts"'+b+'>Save courts</button></div>');G.sources=tile('sources','Booking sources',(S.sources||DEFSRC).filter(function(x){return x.enabled}).map(function(x){return esc(x.code)}).join(' · '),sourcesBody());G.cancels=tile('cancels','Cancellation record',S.crep&&S.crep.data?'last run '+esc(S.crep.from)+' to '+esc(S.crep.to):'who cancelled what, and why',cancelBody());G.reports=tile('reports','Rental report',S.rep&&S.rep.data?'last run '+esc(S.rep.from)+' to '+esc(S.rep.to):'trends and CSV',repBody());G.promos=tile('promos','Promo offers','',promosBody());G.packs=tile('packs','Packs',(S.packs||[]).filter(function(p){return p.active}).length+' on sale',packsBody());G.packrep=tile('packrep','Pack report',S.prep&&S.prep.data?'last run '+esc(S.prep.from)+' to '+esc(S.prep.to):'packs sold, bonus used, money owed',packRepBody());G.plans=tile('plans','Future plans',S.notes&&S.notes.trim()?'Notes saved':'Empty notepad','<div class="tbody"><p class="muted">A private notepad for ideas. Only admins can see it.</p><textarea id="notepad" rows="10" style="width:100%;margin-top:8px" maxlength="20000" placeholder="Scribble future ideas here...">'+esc(S.notesDraft!=null?S.notesDraft:(S.notes||''))+'</textarea>'+cfgMsg('plans')+'<div class="row" style="margin-top:10px"><button class="btn" data-act="save-notes"'+b+'>Save notes</button></div></div>');G.team=staffTiles();
   var mode='settings',sg=S.sgroup||'club';
   var GRP=[['club','Club'],['pricing','Courts and pricing'],['promos','Promotions'],['sources','Booking sources'],['team','Team'],['display','Display'],['reports','Reports'],['plans','Future plans']];
-  var GT={club:['club','rules','cxl'],pricing:['courts','rates','rental'],promos:['promos'],sources:['sources'],team:['team'],display:['look','marker'],reports:['cancels','reports'],plans:['plans']};
+  var GT={club:['club','rules','cxl'],pricing:['courts','rates','rental','packs'],promos:['promos'],sources:['sources'],team:['team'],display:['look','marker'],reports:['cancels','reports','packrep'],plans:['plans']};
   var head='<h2 style="margin-top:20px">Settings</h2><p class="muted" style="margin-top:6px">Changes apply to new bookings straight away. Existing bookings are not changed.</p>',keys=GT[sg]||GT.club;
   var nav='<nav class="snav" aria-label="Settings groups">'+GRP.map(function(g){return '<button class="sgbtn" data-act="sgrp" data-g="'+g[0]+'"'+(sg===g[0]?' aria-current="page"':'')+'>'+g[1]+'</button>'}).join('')+'</nav><select class="snavsel" data-sgsel="1" aria-label="Settings group">'+GRP.map(function(g){return '<option value="'+g[0]+'"'+(sg===g[0]?' selected':'')+'>'+g[1]+'</option>'}).join('')+'</select>';
   el.innerHTML=head+'<div class="sset">'+nav+'<div class="spane">'+keys.map(function(k){return G[k]||''}).join('')+'</div></div>';
@@ -1242,6 +1257,137 @@ async function addPromo(){var nw=S.promoNew||{name:'',amount:'',expiry_days:30,s
   S.busyBtn=true;renderSettings();var r=await sb.rpc('admin_save_promotion',prArgs(null,function(f){return nw[f]}));S.busyBtn=false;
   if(r.error)S.promoMsg._new={t:prErr(r.error)};else{S.promoNew=null;S.promoMsg._new={ok:true,t:'Added '+(r.data&&r.data.name||'offer')+'.'};try{await loadPromos()}catch(e){}}
   renderSettings()}
+
+/* ---------- Money packs ---------- */
+function pkPct(x){return String(Math.round(x*10)/10)}
+function pkCalc(price,gets){price=parseFloat(price);gets=parseFloat(gets);
+  if(!(price>0)||isNaN(gets))return '<span class="muted">Enter the price and what they get.</span>';
+  if(gets<price)return '<span class="bad">They must get at least the price.</span>';
+  var b=gets-price;if(b<=0)return '<span class="muted">No bonus, no discount.</span>';
+  return '<b>Bonus '+money(b)+'</b><span class="muted"> · '+pkPct(b/price*100)+'% extra credit</span><br><b>Discount '+pkPct(b/gets*100)+'%</b><span class="muted"> on court time</span>'}
+function pkNew(){return {name:'',price:'',gets_first:'',gets_refill:'',bonus_days:90,active:true}}
+function pkv(p,f){var e=((S.packEdit||{})[p.id])||{};return e[f]!==undefined?e[f]:p[f]}
+function pkRefresh(key){var g=key==='new'?function(f){return (S.packNew||pkNew())[f]}:function(f){var p=(S.packs||[]).filter(function(x){return x.id===key})[0];return p?pkv(p,f):''};
+  var a=document.querySelector('[data-pkc="'+key+'.first"]'),b=document.querySelector('[data-pkc="'+key+'.refill"]');
+  if(a)a.innerHTML=pkCalc(g('price'),g('gets_first'));if(b)b.innerHTML=pkCalc(g('price'),g('gets_refill'))}
+function pkNum(k,g,f,ph){var v=g(f);return '<input type="number" min="1" step="1" inputmode="decimal" '+k(f)+' value="'+esc(v==null?'':v)+'"'+(ph?' placeholder="'+ph+'"':'')+'>'}
+function pkFields(key,k,g){return '<div class="prgrid"><label>Name<input '+k('name')+' maxlength="60" value="'+esc(g('name')||'')+'" placeholder="e.g. Regular"></label><label>Price (player pays)'+pkNum(k,g,'price')+'</label><label>Bonus valid for (days)<input type="number" min="1" max="730" step="1" inputmode="numeric" '+k('bonus_days')+' value="'+esc(g('bonus_days')==null?'':g('bonus_days'))+'"></label></div>'+
+  '<div class="pkplans"><div class="pkcol"><div class="pkh">First pack</div><label>Player gets (credit)'+pkNum(k,g,'gets_first')+'</label><div class="pkcalc" data-pkc="'+key+'.first">'+pkCalc(g('price'),g('gets_first'))+'</div></div>'+
+  '<div class="pkcol"><div class="pkh">Refill (second pack onward)</div><label>Player gets (credit)'+pkNum(k,g,'gets_refill')+'</label><div class="pkcalc" data-pkc="'+key+'.refill">'+pkCalc(g('price'),g('gets_refill'))+'</div></div></div>'+
+  '<div class="prchk"><label class="check"><input type="checkbox" '+k('active')+(g('active')?' checked':'')+'>On sale</label></div>'}
+function packsBody(){var L=S.packs||[],M=S.packMsg||{},busy=S.busyBtn?' disabled':'';
+  var h='<div class="tbody"><p class="muted">A pack is prepaid court credit sold at the desk. Enter the price and what the player gets, and the bonus and discount are worked out for you. The money the player pays never expires. The bonus is promo credit that expires after the days you set. A player who has bought a pack before gets the refill amount.</p>';
+  if(!L.length)h+='<p class="muted">No packs yet. Add the first one below.</p>';
+  h+=L.map(function(p){return '<div class="prbox"><div class="prhd"><b>'+esc(p.name)+'</b><span class="muted">'+(p.active?'On sale':'Off')+'</span></div><div class="muted prstat">Sold '+p.sold_count+' · '+money(p.sold_total)+' taken · bonus given '+money(p.bonus_total)+'</div>'+pkFields(p.id,function(f){return 'data-pk="'+p.id+'.'+f+'"'},function(f){return pkv(p,f)})+'<button class="btn ghost" data-act="pk-save" data-id="'+p.id+'"'+busy+'>Save pack</button>'+(M[p.id]?'<p class="'+(M[p.id].ok?'okmsg':'err')+'" role="status">'+esc(M[p.id].t)+'</p>':'')+'</div>'}).join('');
+  var nw=S.packNew||pkNew();
+  h+='<h4>New pack</h4><div class="prbox">'+pkFields('new',function(f){return 'data-pknew="'+f+'"'},function(f){return nw[f]})+'<button class="btn" data-act="pk-add"'+busy+'>Add pack</button>'+(M._new?'<p class="'+(M._new.ok?'okmsg':'err')+'" role="status">'+esc(M._new.t)+'</p>':'')+'</div></div>';
+  return h}
+function loadPacks(){return sb.rpc('admin_list_packs').then(function(r){S.packs=Array.isArray(r.data)?r.data:[]})}
+function pkErr(e){var m=(e&&e.message)||'';return /invalid_name/.test(m)?'Enter a name of 1 to 60 characters.':/invalid_price/.test(m)?'Enter a price between 1 and 100,000.':/invalid_gets/.test(m)?'What the player gets must be at least the price, for both the first pack and the refill.':/invalid_days/.test(m)?'Bonus days must be 1 to 730.':/not_allowed/.test(m)?'Only an admin can change packs.':'Could not save the pack.'}
+function pkArgs(id,g){return {p_id:id,p_name:String(g('name')||'').trim(),p_price:parseFloat(g('price')),p_first:parseFloat(g('gets_first')),p_refill:parseFloat(g('gets_refill')),p_days:parseInt(g('bonus_days'),10),p_active:!!g('active')}}
+async function savePack(id){var p=(S.packs||[]).filter(function(x){return x.id===id})[0];if(!p)return;S.packMsg={};
+  S.busyBtn=true;renderSettings();var r=await sb.rpc('admin_save_pack',pkArgs(id,function(f){return pkv(p,f)}));S.busyBtn=false;
+  if(r.error)S.packMsg[id]={t:pkErr(r.error)};else{(S.packEdit=S.packEdit||{})[id]=undefined;S.packMsg[id]={ok:true,t:'Saved. Applies to packs sold from now on.'};try{await loadPacks()}catch(e){}}
+  renderSettings()}
+async function addPack(){var nw=S.packNew||pkNew();S.packMsg={};
+  S.busyBtn=true;renderSettings();var r=await sb.rpc('admin_save_pack',pkArgs(null,function(f){return nw[f]}));S.busyBtn=false;
+  if(r.error)S.packMsg._new={t:pkErr(r.error)};else{S.packNew=null;S.packMsg._new={ok:true,t:'Added '+(r.data&&r.data.name||'pack')+'.'};try{await loadPacks()}catch(e){}}
+  renderSettings()}
+function pkLine(p){return esc(p.name)+' · pay '+money(p.price)+' · get '+money(p.gets)}
+function pkYou(p){var d=+p.gets>0&&+p.bonus>0?pkPct(p.bonus/p.gets*100):'0';return '<p class="pkyou">Customer pays <b>'+money(p.price)+'</b> and gets <b>'+money(p.gets)+'</b> credit: '+money(p.price)+' that never expires'+(+p.bonus>0?', plus a '+money(p.bonus)+' bonus that expires after '+p.bonus_days+' days ('+d+'% discount).':'.')+'</p>'}
+function pkFormHtml(plans,planId,v,attrOf,planAttr,btn){var sel=plans.filter(function(p){return p.id===planId})[0];
+  return '<div class="f2"><select '+planAttr+' aria-label="Pack"><option value="">Choose a pack</option>'+plans.map(function(p){return '<option value="'+p.id+'"'+(p.id===planId?' selected':'')+'>'+pkLine(p)+'</option>'}).join('')+'</select></div>'+(sel?pkYou(sel):'')+
+   '<div class="f2" style="margin-top:6px"><select '+attrOf('method')+' aria-label="Payment method"><option value="">Method (optional)</option>'+['cash','upi','card','other'].map(function(x){return '<option value="'+x+'"'+(v.method===x?' selected':'')+'>'+({cash:'Cash',upi:'UPI',card:'Card',other:'Other'})[x]+'</option>'}).join('')+'</select><input '+attrOf('receipt')+' placeholder="Receipt no. (optional)" value="'+esc(v.receipt||'')+'" aria-label="Receipt"><input '+attrOf('note')+' placeholder="Note (required)" value="'+esc(v.note||'')+'" aria-label="Note">'+btn+'</div>'}
+function packSellForm(id,plans,i){
+  if(!plans||!plans.length)return '<div class="cform"><div class="cft">Sell a pack</div><p class="muted">No packs are on sale. Add them in Settings → Courts and pricing → Packs.</p></div>';
+  var v={method:i.kmethod,receipt:i.kreceipt,note:i.knote};
+  return '<div class="cform"><div class="cft">Sell a pack <small class="muted">'+(plans[0].is_refill?'(refill amounts: they have bought a pack before)':'(first-pack amounts)')+'</small></div>'+pkFormHtml(plans,i.plan,v,function(f){return 'data-ppl="'+id+'.k'+f+'"'},'data-pkplan="'+id+'"','<button class="btn ghost" data-act="pk-sell" data-id="'+id+'"'+(S.busyBtn?' disabled':'')+'>Sell pack</button>')+'</div>'}
+function packHistory(id,d,i){var L=d.packs||[];if(!L.length)return '';
+  return '<div class="csec"><div class="ct">Packs</div>'+L.map(function(x){var open=S.pkVoid===x.id;
+    return '<div class="pkrow"><div class="line"><span>'+cDate(x.created_at)+' · '+esc(x.pack_name)+(x.is_refill?' (refill)':'')+(x.method?' · '+esc(x.method):'')+(x.receipt?' · '+esc(x.receipt):'')+(x.by_name?' <small>by '+esc(x.by_name)+'</small>':'')+'</span><span>'+money(x.price_paid)+(+x.bonus_given>0?' + '+money(x.bonus_given):'')+'</span></div>'+
+     (x.voided_at?'<div class="muted">Cancelled '+cDate(x.voided_at)+(+x.refunded>0?' · '+money(x.refunded)+' returned':'')+'</div>':'<div class="muted">Money left '+money(x.paid_left)+' · bonus left '+money(x.bonus_left)+' · <button class="linkbtn" data-act="pk-void-open" data-sale="'+x.id+'">'+(open?'Keep this pack':'Cancel this pack')+'</button></div>'+
+      (open?'<div class="cform"><p class="muted">Returns '+money(x.paid_left)+' in cash at the counter and removes '+money(x.bonus_left)+' of unused bonus. Credit already used is not taken back.</p><div class="f2"><input data-ppl="'+id+'.vnote" placeholder="Reason (required)" value="'+esc(i.vnote||'')+'" aria-label="Reason"><button class="btn ghost" data-act="pk-void" data-id="'+id+'" data-sale="'+x.id+'"'+(S.busyBtn?' disabled':'')+'>Cancel pack</button></div></div>':''))+'</div>'}).join('')+'</div>'}
+var SELLERR={note_required:'Add a note.',self_not_allowed:'You cannot sell a pack to your own account.',pack_inactive:'That pack is switched off.',not_found:'That pack no longer exists.',user_not_found:'Customer not found.',not_allowed:'You are not allowed to sell packs.',invalid_method:'Pick a valid payment method.'};
+function sellErr(e){var m=(e&&e.message)||'',k=Object.keys(SELLERR).filter(function(x){return m.indexOf(x)>-1})[0];return SELLERR[k]||'Could not sell the pack.'}
+async function doSell(id){var i=(S.pplIn&&S.pplIn[id])||{};S.pplMsg={};
+  if(!i.plan){S.pplMsg[id]={t:'Choose a pack.'};return renderPeople()}
+  if(!(i.knote||'').trim()){S.pplMsg[id]={t:'Add a note, such as how they paid.'};return renderPeople()}
+  var pl=((S.cdet&&S.cdet.pack_plans)||[]).filter(function(p){return p.id===i.plan})[0];
+  S.busyBtn=true;renderPeople();
+  var r=await sb.rpc('admin_sell_pack',{p_user:id,p_pack:i.plan,p_method:i.kmethod||null,p_receipt:(i.kreceipt||'').trim()||null,p_note:i.knote.trim()});S.busyBtn=false;
+  if(r.error){S.pplMsg[id]={t:sellErr(r.error)};return renderPeople()}
+  S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Sold '+(pl?pl.name:'pack')+'. '+money(r.data.paid)+' credit'+(+r.data.bonus>0?' and '+money(r.data.bonus)+' bonus':'')+' added.'};
+  await loadPeople();await loadPacks().catch(function(){});await loadCdet(id)}
+async function doVoid(id,sale){var i=(S.pplIn&&S.pplIn[id])||{};S.pplMsg={};
+  if(!(i.vnote||'').trim()){S.pplMsg[id]={t:'Add the reason.'};return renderPeople()}
+  S.busyBtn=true;renderPeople();var r=await sb.rpc('admin_void_pack',{p_sale:sale,p_note:i.vnote.trim()});S.busyBtn=false;
+  if(r.error){var m=r.error.message||'';S.pplMsg[id]={t:/already_voided/.test(m)?'That pack was already cancelled.':/not_allowed/.test(m)?'Only an admin can cancel a pack.':'Could not cancel the pack.'};return renderPeople()}
+  S.pkVoid=null;S.pplIn[id]={};S.pplMsg[id]={ok:true,t:'Pack cancelled.'+(+r.data.refunded>0?' Hand back '+money(r.data.refunded)+' in cash.':'')+(+r.data.bonus_removed>0?' '+money(r.data.bonus_removed)+' unused bonus removed.':'')};
+  await loadPeople();await loadCdet(id)}
+/* front desk: sell a pack */
+function pkFresh(){return {q:'',res:null,sel:null,plans:null,plan:'',method:'',receipt:'',note:'',msg:null,loading:false}}
+function pkDeskState(){return S.pk=S.pk||pkFresh()}
+function pkResHtml(){var P=pkDeskState(),t=(P.q||'').trim();if(P.sel)return '';if(P.loading)return '<p class="muted">Searching…</p>';
+  if(P.res===null)return t.length>0&&t.length<3?'<p class="muted">Type at least 3 letters.</p>':'';
+  return P.res.length?P.res.map(function(c,ix){return '<button class="pkpick" data-act="pk-pick" data-i="'+ix+'"><b>'+esc(c.full_name||c.email)+'</b><span class="muted">'+esc(c.email)+(c.phone?' · '+esc(c.phone):'')+' · credit '+money(+c.paid+ +c.promo)+'</span></button>'}).join(''):'<p class="muted">No customer found.</p>'}
+function renderPkDesk(){var el=$('pkdesk');if(!el)return;var P=pkDeskState();
+  var h='<h3>Sell a pack</h3><p class="muted">Prepaid court credit with a bonus. Take the money at the counter first, then record it here.</p>';
+  if(P.msg)h+='<div class="'+(P.msg.ok?'okmsg':'err')+'" role="status">'+esc(P.msg.t)+'</div>';
+  if(!P.sel)h+='<input id="pk-q" data-pks="q" type="search" placeholder="Find the customer: name, email or phone" aria-label="Find the customer" autocomplete="off" value="'+esc(P.q||'')+'"><div id="pkres" class="pkres">'+pkResHtml()+'</div>';
+  else{var c=P.sel;h+='<div class="pkwho"><span><b>'+esc(c.full_name||c.email)+'</b> <span class="muted">'+esc(c.email)+'</span></span><button class="btn ghost" data-act="pk-clear">Change</button></div>';
+    if(P.plans===null)h+='<p class="muted">Loading packs…</p>';
+    else if(!P.plans.length)h+='<p class="muted">No packs are on sale. An admin can add them in Settings.</p>';
+    else h+='<p class="muted">'+(P.plans[0].is_refill?'Refill amounts: they have bought a pack before.':'First-pack amounts.')+'</p>'+pkFormHtml(P.plans,P.plan,{method:P.method,receipt:P.receipt,note:P.note},function(f){return 'data-pks="'+f+'"'},'data-pkplan="desk"','<button class="btn" data-act="pk-sell-desk"'+(S.busyBtn?' disabled':'')+'>Sell pack</button>')}
+  el.innerHTML=h}
+function pkDeskInput(f,v){var P=pkDeskState();
+  if(f==='q'){P.q=v;clearTimeout(S.pkT);var t=v.trim();
+    if(t.length<3){P.res=null;P.loading=false;var r0=$('pkres');if(r0)r0.innerHTML=pkResHtml();return}
+    P.loading=true;var r1=$('pkres');if(r1)r1.innerHTML=pkResHtml();
+    S.pkT=setTimeout(async function(){var r=await sb.rpc('staff_find_customers',{p_q:t});if((P.q||'').trim()!==t)return;P.loading=false;P.res=Array.isArray(r.data)?r.data:[];var e2=$('pkres');if(e2)e2.innerHTML=pkResHtml()},350);return}
+  P[f]=v}
+async function pkPick(ix){var P=pkDeskState();if(!P.res||!P.res[ix])return;P.sel=P.res[ix];P.res=null;P.plans=null;P.plan='';P.msg=null;renderPkDesk();
+  var r=await sb.rpc('staff_pack_options',{p_user:P.sel.id});if(!P.sel)return;P.plans=Array.isArray(r.data)?r.data:[];renderPkDesk()}
+async function doSellDesk(){var P=pkDeskState();P.msg=null;
+  if(!P.plan){P.msg={t:'Choose a pack.'};return renderPkDesk()}
+  if(!(P.note||'').trim()){P.msg={t:'Add a note, such as how they paid.'};return renderPkDesk()}
+  var pl=(P.plans||[]).filter(function(p){return p.id===P.plan})[0],nm=P.sel.full_name||P.sel.email;
+  S.busyBtn=true;renderPkDesk();
+  var r=await sb.rpc('admin_sell_pack',{p_user:P.sel.id,p_pack:P.plan,p_method:P.method||null,p_receipt:(P.receipt||'').trim()||null,p_note:P.note.trim()});S.busyBtn=false;
+  if(r.error){P.msg={t:sellErr(r.error)};return renderPkDesk()}
+  S.pk=pkFresh();S.pk.msg={ok:true,t:'Sold '+(pl?pl.name:'pack')+' to '+nm+'. '+money(r.data.paid)+' credit'+(+r.data.bonus>0?' and '+money(r.data.bonus)+' bonus':'')+' added.'};renderPkDesk()}
+/* profile */
+function profilePacks(){var L=S.myPlans||[];if(!L.length)return '';
+  return '<div class="setbox"><h3>Prepaid packs</h3><p class="muted">Pay once and get more court credit than you paid for. Ask at the front desk to buy one.'+(L[0].is_refill?' These are the amounts for a refill.':'')+'</p>'+L.map(function(p){return '<div class="item" style="padding:8px 12px"><div><div><b>'+esc(p.name)+'</b></div><div class="muted">Pay '+money(p.price)+', get '+money(p.gets)+' credit'+(+p.bonus>0?' (includes a '+money(p.bonus)+' bonus that expires '+p.bonus_days+' days after you buy)':'')+'</div></div></div>'}).join('')+'<p class="muted">The money you pay never expires. Bonus credit is used first, then your own credit.</p></div>'}
+/* pack report */
+var PML={cash:'Cash',upi:'UPI',card:'Card',other:'Other'};
+function repTb(rows,cols){return rows.length?'<div style="overflow-x:auto"><table class="rtab"><thead><tr>'+cols.map(function(c){return '<th>'+c[0]+'</th>'}).join('')+'</tr></thead><tbody>'+rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td>'+esc(String(c[1](x)))+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>':'<p class="muted">None in this period.</p>'}
+function packRepBody(){var R=S.prep=S.prep||{};if(!R.from)R.from=clubDaysAgo(30);if(!R.to)R.to=clubDaysAgo(0);var d=R.data;
+  var h='<div class="tbody"><p class="muted">Packs sold in the date range, by the day they were sold. Cancelled packs are left out of the totals. "Owed to players" is prepaid money still unused across all packs, as of now.</p><div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:8px"><label style="margin:0">From<input type="date" data-prep="from" value="'+esc(R.from)+'"></label><label style="margin:0">To<input type="date" data-prep="to" value="'+esc(R.to)+'"></label><button class="btn" data-act="prep-run"'+(R.busy?' disabled':'')+'>'+(R.busy?'Running…':'Run report')+'</button>'+(d&&d.sales&&d.sales.length?'<button class="btn ghost" data-act="prep-csv">Download (CSV)</button>':'')+'</div>'+(R.err?'<div class="err" role="alert">'+esc(R.err)+'</div>':'');
+  if(d){var s=d.summary||{};
+    h+='<div class="cmet" style="margin-top:12px">'+[[s.sold_count,'packs sold'],[money(s.money_taken),'money taken'],[money(s.bonus_given),'bonus given'],[money(s.bonus_used),'bonus used'],[money(s.bonus_open),'bonus still open'],[money(s.bonus_expired),'bonus expired']].map(function(x){return '<div><b>'+esc(String(x[0]))+'</b>'+x[1]+'</div>'}).join('')+'</div>';
+    h+='<p style="margin-top:12px">Owed to players (all unused prepaid money, now): <b>'+money(d.owed_now)+'</b>'+(+s.voided_count>0?' · '+s.voided_count+' pack'+(+s.voided_count===1?'':'s')+' cancelled, '+money(s.refunded)+' returned':'')+'</p>';
+    if((d.by_pack||[]).length)h+='<h4>By pack</h4>'+repTb(d.by_pack,[['Pack',function(x){return x.name}],['Sold',function(x){return x.n}],['Money',function(x){return money(x.money)}],['Bonus',function(x){return money(x.bonus)}]]);
+    if((d.by_seller||[]).length)h+='<h4>By seller</h4>'+repTb(d.by_seller,[['Seller',function(x){return x.name}],['Sold',function(x){return x.n}],['Money',function(x){return money(x.money)}]]);
+    if((d.by_method||[]).length)h+='<h4>By payment method</h4>'+repTb(d.by_method,[['Method',function(x){return PML[x.name]||x.name}],['Sold',function(x){return x.n}],['Money',function(x){return money(x.money)}]]);
+    h+='<h4>Sales'+(d.sales&&d.sales.length>100?' (latest 100, download for all)':'')+'</h4>'+repTb((d.sales||[]).slice(0,100),[['Date',function(x){return fmtTs(x.created_at)}],['Customer',function(x){return x.customer||x.email||'—'}],['Pack',function(x){return x.pack_name+(x.is_refill?' (refill)':'')}],['Paid',function(x){return money(x.price_paid)}],['Bonus',function(x){return money(x.bonus_given)}],['Method',function(x){return x.method?(PML[x.method]||x.method)+(x.receipt?' · '+x.receipt:''):'—'}],['By',function(x){return x.seller||'—'}],['Status',function(x){return x.voided?'Cancelled'+(x.refunded>0?', '+money(x.refunded)+' returned':''):'Active'}]])}
+  return h+'</div>'}
+async function runPrep(){var R=S.prep;R.err='';if(!R.from||!R.to||R.to<R.from){R.err='Pick a start date and an end date that is the same or later.';return renderSettings()}
+  R.busy=true;renderSettings();var r=await sb.rpc('admin_pack_report',{p_from:R.from,p_to:R.to});R.busy=false;
+  if(r.error){R.err='Could not run the report. You may need to sign in again as an admin.'}else{R.data=r.data}
+  renderSettings()}
+function csvPrep(){var R=S.prep,rows=(R&&R.data&&R.data.sales)||[];var cols=['created_at','customer','email','pack_name','price_paid','bonus_given','is_refill','method','receipt','note','seller','voided','void_note','refunded'];
+  var q=function(v){v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  var txt=cols.join(',')+'\n'+rows.map(function(e){return cols.map(function(c){return q(e[c])}).join(',')}).join('\n');
+  try{var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv'}));a.download='packs-'+R.from+'-to-'+R.to+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}catch(e){}}
+document.addEventListener('input',function(e){var d=e.target.dataset||{};
+  if(d.pk){var q=d.pk.split('.');S.packEdit=S.packEdit||{};S.packEdit[q[0]]=S.packEdit[q[0]]||{};S.packEdit[q[0]][q[1]]=e.target.type==='checkbox'?e.target.checked:e.target.value;pkRefresh(q[0]);return}
+  if(d.pknew){S.packNew=S.packNew||pkNew();S.packNew[d.pknew]=e.target.type==='checkbox'?e.target.checked:e.target.value;pkRefresh('new');return}
+  if(d.prep){S.prep=S.prep||{};S.prep[d.prep]=e.target.value;return}
+  if(d.pks){pkDeskInput(d.pks,e.target.value)}});
+document.addEventListener('change',function(e){var d=e.target.dataset||{};
+  if(d.prep){S.prep=S.prep||{};S.prep[d.prep]=e.target.value;return}
+  if(d.pks){if(d.pks!=='q')pkDeskInput(d.pks,e.target.value);return}
+  if(d.pkplan){var id=d.pkplan;if(id==='desk'){pkDeskState().plan=e.target.value;renderPkDesk()}else{S.pplIn=S.pplIn||{};S.pplIn[id]=S.pplIn[id]||{};S.pplIn[id].plan=e.target.value;renderPeople()}}});
 document.addEventListener('input',function(e){var d=e.target.dataset||{};
   if(d.cq){S.custQ=e.target.value;var rw=$('crows');if(rw)rw.innerHTML=custRows();return}
   if(d.pr){var q=d.pr.split('.');S.promoEdit=S.promoEdit||{};S.promoEdit[q[0]]=S.promoEdit[q[0]]||{};S.promoEdit[q[0]][q[1]]=e.target.type==='checkbox'?e.target.checked:e.target.value}
@@ -1369,6 +1515,16 @@ document.addEventListener('click',function(e){S.lastAct=Date.now();if(S.acctOpen
   else if(a==='cled'){S.cLedAll=!S.cLedAll;renderPeople()}
   else if(a==='pr-save')savePromo(t.dataset.id);
   else if(a==='pr-add')addPromo();
+  else if(a==='pk-save')savePack(t.dataset.id);
+  else if(a==='pk-add')addPack();
+  else if(a==='pk-sell')doSell(t.dataset.id);
+  else if(a==='pk-void-open'){S.pkVoid=S.pkVoid===t.dataset.sale?null:t.dataset.sale;renderPeople()}
+  else if(a==='pk-void')doVoid(t.dataset.id,t.dataset.sale);
+  else if(a==='pk-pick')pkPick(parseInt(t.dataset.i,10));
+  else if(a==='pk-clear'){S.pk=pkFresh();renderPkDesk()}
+  else if(a==='pk-sell-desk')doSellDesk();
+  else if(a==='prep-run')runPrep();
+  else if(a==='prep-csv')csvPrep();
   else if(a==='check-in')doCheckIn(t.dataset.id);
   else if(a==='undo-in')doUndoCheckIn(t.dataset.id);
   else if(a==='noshow'){S.confirmNoShow=true;renderPanel()}
@@ -1393,11 +1549,11 @@ async function route(){
   if(v!=='settings'&&S.settings)applyTheme(S.settings.appearance);
   S.view=v;S.sel=null;S.mSel=null;S.err='';S.confirmCancel=false;S.dur=1;
   if(v==='mine')await loadMine();
-  if(v==='profile'){S.ledger=null;S.pmsg='';renderAll();await loadLedger()}
+  if(v==='profile'){S.ledger=null;S.pmsg='';renderAll();await loadLedger();try{var rpl=await sb.rpc('my_pack_plans');S.myPlans=Array.isArray(rpl.data)?rpl.data:[]}catch(e){S.myPlans=[]}if(S.view==='profile')renderProfile()}
   if(v==='people'){S.people=null;S.pplMsg={};S.custSel=null;S.cdet=null;renderAll();await loadPeople()}
   if(S.frontTimer){clearInterval(S.frontTimer);S.frontTimer=null}
   if(v==='front'){S.front=null;S.frontOpen=null;S.frontNs=null;S.frontMsg='';renderAll();S.frontTimer=setInterval(function(){if(S.view==='front')loadFront()},30000);await loadFront()}
-  if(v==='settings'||v==='reports'||v==='plans'){S.setOpen={};S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}try{await loadPromos()}catch(e){S.promos=[]}}
+  if(v==='settings'||v==='reports'||v==='plans'){S.setOpen={};S.cfg=null;try{await loadCfg()}catch(e){S.cfg=null}try{await loadPromos()}catch(e){S.promos=[]}try{await loadPacks()}catch(e){S.packs=[]}}
   renderAll();if(S.ready&&v!=='mine'&&v!=='profile'&&v!=='people'&&v!=='front')await refresh();
 }
 window.addEventListener('hashchange',route);
