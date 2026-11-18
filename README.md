@@ -233,3 +233,32 @@ Settings has seven groups in a list on the left (a dropdown on phones). Each gro
 | Future plans | Private notepad |
 
 The Rates Save button also saves the peak start time.
+
+## Promo offers and credit rules
+
+**Promo credit can only be given from an offer.** Offers are set up in Settings → Promotions. An offer has a name, a credit amount, expiry (days after it is given), optional start and end dates, an optional total budget, a "once per customer" switch and an On switch. Each offer shows how many times it was given, the total, how much was used, how much is still open and how much expired.
+
+From a customer's page, an admin chooses an offer and adds a required note. The amount and expiry come from the offer. The server blocks the grant if the offer is off, outside its dates, over its budget, or already given to that customer (when "once per customer" is on).
+
+**Paid credit** is added as a top-up (money taken), with an optional payment method (cash, UPI, card, other) and receipt number. Removing paid credit is a correction. A note is always required, and nobody can change their own credit.
+
+Every change is logged with who made it, when, and why. The old free-form promo credit entry no longer exists.
+
+## Customers
+
+Customers shows a searchable list (filter by All, Players, Staff or Admins). Opening a customer shows their role (and staff login settings for staff), activity (bookings, upcoming, no-shows, cancelled, with rental, last game), paid and promo credit with each promo's expiry, the credit actions, and the credit history (six newest, with Show details for more). On a phone the list and the customer page are separate screens with a Back button.
+
+## Money packs
+
+A pack is prepaid court credit sold at the desk. The player pays a price and gets that much paid credit (never expires) plus a bonus as promo credit (expires after N days). Credit then follows the normal spend and cancellation rules.
+
+- **Settings → Courts and pricing → Packs (admin).** For each plan enter the name, the price, what the player gets as a first pack, what they get as a refill (second pack onward), the bonus validity in days, and on or off. The bonus and the discount are worked out and shown as you type. Discount = bonus / what they get.
+- **Sell a pack.** Admins: Customers → customer → "Sell a pack". Staff and admins: Front desk → "Sell a pack" (search the customer, choose the pack). A note is required; method and receipt are optional. Nobody can sell a pack to their own account.
+- **Cancel a pack (admin only).** Customers → customer → Packs → "Cancel this pack" with a reason. Unused paid money is handed back in cash at the counter and unused bonus is removed. Credit already used is not taken back.
+- **Players** see the packs on their Profile (price, what they get, bonus validity). Buying is at the front desk until online payment is live.
+- **Reports:** Settings → Reports → Pack report (packs sold, money taken, bonus given / used / open / expired, money owed to players, by pack, seller and payment method, CSV).
+- **Database:** tables `credit_packs`, `pack_sales`; RPCs `admin_save_pack`, `admin_list_packs`, `admin_sell_pack`, `admin_void_pack`, `admin_pack_report`, `staff_pack_options`, `staff_find_customers`, `my_pack_plans`; `admin_customer_detail` now also returns the customer's packs.
+
+## Expenses
+
+Settings → Expenses is a private free-text notepad for club expenses (rent, equipment, wages, anything). Admin only, same as Future plans. Stored in `admin_notes` under the id `expenses`.
